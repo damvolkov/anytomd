@@ -74,6 +74,7 @@ def test_manifest_collects_crates_and_python_groups(tmp_path: Path):
     (tmp_path / "Cargo.toml").write_text('[workspace.dependencies]\npyo3 = "0.29"\ntokio = { version = "1" }\n')
     (tmp_path / "pyproject.toml").write_text(
         '[project]\nname = "x"\ndependencies = ["msgspec>=0.19"]\n'
+        '[project.optional-dependencies]\nocr = ["liteparse>=2.16"]\nfull = ["x[ocr]"]\n'
         '[dependency-groups]\ntest = ["pytest>=9.1", "hypothesis[cli]>=6"]\ndev = [{ include-group = "test" }, "prek>=0.4"]\n'
     )
     found = {(name, registry) for name, registry in ManifestHealth(tmp_path).run()}
@@ -81,6 +82,7 @@ def test_manifest_collects_crates_and_python_groups(tmp_path: Path):
         ("pyo3", RegistryHealth.CRATES),
         ("tokio", RegistryHealth.CRATES),
         ("msgspec", RegistryHealth.PYPI),
+        ("liteparse", RegistryHealth.PYPI),
         ("pytest", RegistryHealth.PYPI),
         ("hypothesis", RegistryHealth.PYPI),
         ("prek", RegistryHealth.PYPI),

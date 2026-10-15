@@ -11,6 +11,7 @@ the workflow commits. Anything you change outside the allowlist below is discard
 | `crates/native/src/lib.rs` | The whole binding: `#[pyfunction]`s, `#[pyclass]`es, `to_py_err` error mapping, asyncio bridge, `#[pymodule] _native` registration |
 | `src/anytomd/__init__.py` | Public re-exports and `__all__` |
 | `src/anytomd/_native.pyi` | Type stubs: the contract users see |
+| `src/anytomd/describers.py`, `converters.py`, `documents.py`, `errors.py`, `_capabilities.py` | Pure-Python optional capabilities (extras `ocr`, `vlm`, `pdf`): OCR/vision describers, `PdfConverter`; leave them alone unless the engine change touches them |
 | `tests/unit/` | pytest suite, one file per surface (`test_convert_bytes.py`, `test_options.py`, `test_describer.py`, …) |
 | `tests/resources/` | Fixtures; regenerate with `make samples`, never hand-edit binaries |
 | `docs/` | MkDocs site; `docs/reference/*.md` documents every function, option, class and exception |

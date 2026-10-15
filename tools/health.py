@@ -133,12 +133,17 @@ class ManifestHealth:
 
     def _run_python(self) -> Iterator[tuple[str, RegistryHealth]]:
         project = tomllib.loads((self._root / "pyproject.toml").read_text())
-        groups = project.get("dependency-groups", {}).values()
+        groups = [
+            *project.get("dependency-groups", {}).values(),
+            *project.get("project", {}).get("optional-dependencies", {}).values(),
+        ]
         requirements = [*project.get("project", {}).get("dependencies", []), *(r for g in groups for r in g)]
         return (
             (match.group(0), RegistryHealth.PYPI)
             for requirement in requirements
-            if isinstance(requirement, str) and (match := REQUIREMENT.match(requirement))
+            if isinstance(requirement, str)
+            and (match := REQUIREMENT.match(requirement))
+            and match.group(0) != project.get("project", {}).get("name")
         )
 
     ############################################################

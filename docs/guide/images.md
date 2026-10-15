@@ -80,6 +80,38 @@ result = convert_file("deck.pptx", image_describer=describer)
 
 The default model is `gemini-3-flash-preview`. A `GeminiDescriber` is also callable on its own: `describer(image, "image/png", "What is this?")`. → [Reference](../reference/describers.md)
 
+## Optional: the capability composites
+
+Install [`anytomd[full]`](../installation.md#extras-what-each-one-adds) and two new describers appear, plus the composite that joins them:
+
+```python
+from anytomd import ImageDescriber, convert_file
+
+describer = ImageDescriber(model="gpt-4.1-mini", api_key="sk-...")
+result = convert_file("scan.docx", image_describer=describer)
+describer.close()
+```
+
+`ImageDescriber` answers every image in one pass:
+
+1. **Local OCR** (`LiteParseDescriber`, Tesseract through liteparse — offline, free) reads the text-bearing images: invoices, slides, screenshots of documents.
+2. **The vision model** (`OpenAIDescriber`) is asked only when OCR returns nothing: an image without letters — a cat, a diagram, a scene.
+3. **All silent**: the alt text stays empty, exactly as without a describer. Nothing is invented.
+
+The rule that makes step 2 honest was measured, not assumed: on letterless inputs — noise, gradients, solid fills, dense line art, real photographs — the OCR layer yields zero text items, no stray characters, no confabulated words. `""` therefore means "no letters here", never "OCR was untidy".
+
+Providers speak the OpenAI wire; the model switch is `api_base` plus `model` ([official compatibility endpoints for Anthropic and Google](../installation.md#extras-what-each-one-adds)):
+
+```python
+ImageDescriber(
+    model="claude-sonnet-5-5",
+    api_base="https://api.anthropic.com/v1/",
+    api_key=os.environ["ANTHROPIC_API_KEY"],
+)
+```
+
+Every answer is collapsed to one line: a blank line inside `![...]` would split the image in two. `AsyncImageDescriber` is the same stack for `convert_*_async`, with one shared gate over the engine's per-image fan-out (`max_concurrency`, default 4) so tesseract workers and provider sockets both stay bounded. A provider failure raises into the engine and lands as a `skipped_element` warning; an OCR failure is a miss — it just falls through. `close()` / `await aclose()` release the provider's sockets when you are done with the describer.
+
 ## Async: `async_image_describer`
 
 The async conversions take an `async def` with the same shape and **describe every image of the document concurrently** on the running event loop:

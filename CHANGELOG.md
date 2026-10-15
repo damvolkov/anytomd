@@ -4,6 +4,35 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [1.3.1.post2] - 2026-10-15
+
+Optional capabilities over the same engine (anytomd-rs 1.3.1). The base wheel keeps zero Python dependencies.
+
+### Added
+
+- Extras named by capability, not vendor: `anytomd[ocr]` (local OCR, liteparse with bundled Tesseract),
+  `anytomd[vlm]` (vision through any OpenAI-compatible endpoint, `openai` SDK), `anytomd[pdf]` (PDF to Markdown,
+  liteparse) and `anytomd[full]`. A missing extra raises `ImportError` naming the one to install.
+- `LiteParseDescriber` / `AsyncLiteParseDescriber`: OCR describers; `""` means the image holds no letters, and formats
+  OCR cannot read (SVG, HEIC) miss the same way.
+- `OpenAIDescriber` / `AsyncOpenAIDescriber`: vision describers over `chat/completions` with a data-URI image;
+  `close()` / `await aclose()` release the sockets.
+- `ImageDescriber` / `AsyncImageDescriber`: OCR first, the vision model only for images OCR reads as blank, empty alt
+  text when every layer is silent; the async composite bounds the per-image fan-out with one gate (`max_concurrency`).
+- `PdfConverter`, `PdfDocument` and `PdfError` (a `ConvertError`): a separate entry point for PDFs; the engine still
+  raises `FormatNotSupportedError` for them, so routing stays explicit.
+- The monthly dependency health check also covers optional dependencies.
+
+### Changed
+
+- The stub-only callback aliases are now `DescribeCallable` / `AsyncDescribeCallable`; `ImageDescriber` and
+  `AsyncImageDescriber` are the composite classes.
+
+### Fixed
+
+- Alt text from the new describers is collapsed to one line: a blank line inside `![...]` split the image into two
+  paragraphs.
+
 ## [1.3.1.post1] - 2026-10-15
 
 Binding fixes over the same engine (anytomd-rs 1.3.1). No change to Markdown output.

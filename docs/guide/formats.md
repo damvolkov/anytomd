@@ -28,6 +28,8 @@ convert_bytes(pdf_bytes, "pdf")
 
 Send PDFs to the model directly. Catch `FormatNotSupportedError` to route them.
 
+Or keep them local: the optional [`pdf` extra](../installation.md#extras-what-each-one-adds) adds [`PdfConverter`](../reference/pdf.md), a separate entry point over the same liteparse engine — text layers read directly, scanned pages OCR'd unless you turn that off.
+
 ## How the format is chosen
 
 `convert_file` reads the file and decides in this order:

@@ -34,7 +34,8 @@ print(result.title)        # 'Quarterly Report'
 | Images | `.png` `.jpg` `.gif` `.webp` `.bmp` `.tiff` `.svg` `.heic` `.avif` |
 | Code and text | `.py` `.rs` `.js` `.ts` `.go` … · `.txt` `.md` `.yaml` `.toml` … |
 
-Detected from magic bytes and extension. PDF is refused on purpose: current LLMs read it natively.
+Detected from magic bytes and extension. PDF is refused by the engine on purpose: current LLMs read it natively —
+the optional [`pdf` extra](#optional-capabilities) parses it locally when you would rather not send it.
 Details per format → [Formats](https://damvolkov.github.io/anytomd/guide/formats/).
 
 ## API
@@ -66,6 +67,40 @@ result = convert_file("deck.pptx", image_describer=GeminiDescriber())   # GEMINI
 
 The async variants take an `async def` and describe every image of a document concurrently. A failing describer never
 aborts the conversion: it becomes a warning. → [Image descriptions](https://damvolkov.github.io/anytomd/guide/images/)
+
+## Optional capabilities
+
+The wheel keeps zero Python dependencies. Four extras add a capability — the name says what it brings, not the library
+behind it:
+
+| Extra | Adds | Backed by |
+|---|---|---|
+| `[ocr]` | `LiteParseDescriber`: local OCR alt text — offline, no key, free | [liteparse](https://github.com/run-llama/liteparse), Rust in-process |
+| `[vlm]` | `OpenAIDescriber`: vision answers through any OpenAI-compatible endpoint — OpenAI, Anthropic, Gemini, local servers | `openai` SDK |
+| `[pdf]` | `PdfConverter`: PDF to Markdown, OCR on by default | liteparse again (the wheel deduplicates) |
+| `[full]` | all three, plus the composite below | |
+
+`GeminiDescriber` needs no extra: it is compiled into every wheel.
+
+`ImageDescriber` composes them with one rule — empty means no letters: OCR answers images that carry text; only when it
+reads nothing does the vision model describe the image; when everything is silent, the alt text stays empty exactly as
+without a describer.
+
+```bash
+uv add "anytomd[full]"
+```
+
+```python
+from anytomd import ImageDescriber, convert_file
+
+describer = ImageDescriber(
+    model="claude-sonnet-5-5",
+    api_base="https://api.anthropic.com/v1/",       # Anthropic's OpenAI-compatible endpoint
+    api_key="sk-ant-...",
+)
+result = convert_file("deck.pptx", image_describer=describer)
+describer.close()
+```
 
 ## Errors
 

@@ -2,6 +2,7 @@
 
 import base64
 import io
+import itertools
 import json
 import os
 import urllib.error
@@ -84,6 +85,27 @@ _PNG = bytes.fromhex(
     "a3168c5a306ac1a805a3160c150b009236603df43ffd0b0000000049454e44ae"
     "426082"
 )
+
+
+def text_pdf(text: str) -> bytes:
+    """One-page PDF carrying `text` in its text layer, with a valid xref table."""
+    stream = f"BT /F1 24 Tf 72 700 Td ({text}) Tj ET".encode()
+    bodies = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>",
+        b"<< /Length " + str(len(stream)).encode() + b" >>\nstream\n" + stream + b"\nendstream",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    ]
+    header = b"%PDF-1.4\n"
+    objects = [f"{number} 0 obj\n".encode() + body + b"\nendobj\n" for number, body in enumerate(bodies, start=1)]
+    offsets = list(itertools.accumulate((len(obj) for obj in objects[:-1]), initial=len(header)))
+    xref = len(header) + sum(map(len, objects))
+    table = f"xref\n0 {len(bodies) + 1}\n0000000000 65535 f \n".encode() + b"".join(
+        f"{offset:010d} 00000 n \n".encode() for offset in offsets
+    )
+    trailer = f"trailer\n<< /Size {len(bodies) + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n".encode()
+    return header + b"".join(objects) + table + trailer
 
 
 def llm_describe(image: bytes, mime_type: str, prompt: str) -> str:

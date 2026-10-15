@@ -23,17 +23,37 @@ from anytomd._native import (
     detect_format,
     detect_zip_format,
 )
+from anytomd.converters import PdfConverter
+from anytomd.describers import (
+    AsyncImageDescriber,
+    AsyncLiteParseDescriber,
+    AsyncOpenAIDescriber,
+    ImageDescriber,
+    LiteParseDescriber,
+    OpenAIDescriber,
+)
+from anytomd.documents import PdfDocument
+from anytomd.errors import PdfError
 
 __all__ = [
     "AsyncGeminiDescriber",
+    "AsyncImageDescriber",
+    "AsyncLiteParseDescriber",
+    "AsyncOpenAIDescriber",
     "ConversionResult",
     "ConversionWarning",
     "ConvertError",
     "FormatNotSupportedError",
     "GeminiDescriber",
+    "ImageDescriber",
     "ImageDescriptionError",
     "InputTooLargeError",
+    "LiteParseDescriber",
     "MalformedDocumentError",
+    "OpenAIDescriber",
+    "PdfConverter",
+    "PdfDocument",
+    "PdfError",
     "SpreadsheetError",
     "UnsupportedFormatError",
     "Utf8Error",
