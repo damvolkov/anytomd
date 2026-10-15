@@ -77,6 +77,25 @@ result = convert_file("deck.pptx", image_describer=describe)
 
 Failures never abort the conversion: they become warnings. More → [Image descriptions](guide/images.md).
 
+## 6. Optional: OCR, vision and PDF
+
+```bash
+pip install "anytomd[full]"
+```
+
+```python
+from anytomd import ImageDescriber, PdfConverter, convert_file
+
+describer = ImageDescriber(model="gpt-4.1-mini", api_key="sk-...")   # OCR first, vision only for images without text
+result = convert_file("deck.pptx", image_describer=describer)
+describer.close()
+
+document = PdfConverter().convert_file("report.pdf")                 # the format the engine refuses, read locally
+document.markdown
+```
+
+Each extra adds one capability: `[ocr]`, `[vlm]`, `[pdf]`, or `[full]` for all. → [Extras](installation.md#extras-what-each-one-adds) · [Image descriptions](guide/images.md#optional-the-capability-composites) · [PDF](reference/pdf.md)
+
 ## Handle what went wrong
 
 ```python
