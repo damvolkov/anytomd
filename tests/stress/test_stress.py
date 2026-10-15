@@ -2,7 +2,6 @@
 
 import asyncio
 import io
-import os
 import threading
 import time
 import zipfile
@@ -34,27 +33,37 @@ def huge_docx(uncompressed_bytes: int = 20 * 1024 * 1024) -> bytes:
     return buffer.getvalue()
 
 
-@pytest.mark.skipif((os.cpu_count() or 1) < 2, reason="parallelism needs two cores")
-def test_threads_convert_in_parallel(path_of, tmp_path):
+def test_threads_convert_concurrently_with_identical_results(tmp_path):
     target = tmp_path / "stress.csv"
     target.write_bytes(big_csv())
-
-    def convert():
-        return anytomd.convert_file(target)
-
-    baseline = convert()
-    serial_start = time.perf_counter()
-    _ = [convert() for _ in range(8)]
-    serial_elapsed = time.perf_counter() - serial_start
-
+    baseline = anytomd.convert_file(target)
     results: list[anytomd.ConversionResult] = []
-    wall_start = time.perf_counter()
-    run_in_threads(8, convert, results)
-    wall_elapsed = time.perf_counter() - wall_start
-
+    run_in_threads(8, lambda: anytomd.convert_file(target), results)
+    assert len(results) == 8
     assert all(result.markdown == baseline.markdown for result in results)
-    ### Released GIL means threads overlap: clearly faster than the same work in series, whatever the core count.
-    assert wall_elapsed < serial_elapsed * 0.75
+
+
+def test_conversion_releases_the_gil_for_other_threads():
+    ### A pure-Python heartbeat only ticks during a long native call if that call has released the GIL.
+    payload = big_csv(1_000_000)
+    stop = threading.Event()
+    ticks: list[int] = []
+
+    def heartbeat():
+        while not stop.is_set():
+            ticks.append(1)
+            time.sleep(0.001)
+
+    thread = threading.Thread(target=heartbeat)
+    thread.start()
+    try:
+        before = len(ticks)
+        anytomd.convert_bytes(payload, "csv")
+        during = len(ticks) - before
+    finally:
+        stop.set()
+        thread.join()
+    assert during > 10
 
 
 def run_in_threads(count: int, work, sink: list) -> None:
