@@ -88,14 +88,14 @@ The binding follows its dependencies on its own; a human only reviews and merges
 | Trigger | Job | Does |
 |---|---|---|
 | New anytomd-rs, PyO3, tokio, tooling release | Renovate | Opens a PR (`renovate/*`) |
-| That PR | `sync.yml` | Sets the package version to the engine's, regenerates `THIRD_PARTY_LICENSES.md` |
+| That PR | `sync.yml` | Sets the package version to the engine's, logs the engine in `CHANGELOG.md`, regenerates `THIRD_PARTY_LICENSES.md` |
 | Every push and PR | `ci.yml` | prek hooks, tests on Linux/macOS/Windows × Python 3.12/3.14, Rust coverage ≥ 90 %, docs; on `renovate/*` also the engine's public API diff and release notes |
 | CI red, or engine API grew | `ai-fix.yml` | A Qwen Code agent repairs or extends the binding under [`QWEN.md`](QWEN.md); allowlisted commits only, three attempts at most |
 | First day of the month | `health.yml` | Flags archived, vanished, stale or dormant dependencies in one issue |
 | `v*` tag | `release.yml` | Wheels for five platforms, sdist, build provenance, PyPI via trusted publishing |
 
-Package version = engine version; binding-only fixes ship as `.postN`.
-→ [Self-maintenance](https://damvolkov.github.io/anytomd/maintenance/)
+Package version = engine version; binding-only fixes ship as `.postN`. Exactly which files each piece may edit, and with
+which tool → [What it touches](https://damvolkov.github.io/anytomd/maintenance/#what-it-touches)
 
 ## Development
 

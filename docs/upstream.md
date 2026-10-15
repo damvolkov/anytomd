@@ -21,7 +21,7 @@ Report wrong or missing Markdown [upstream](https://github.com/developer0hye/any
 ```python
 import anytomd
 
-anytomd.__version__   # '1.3.1' — the anytomd-rs release compiled into this build
+anytomd.__version__   # e.g. '1.3.1' — the anytomd-rs release compiled into this build
 ```
 
 The binding pins an exact crate version. The package version is the engine version it embeds — anytomd-rs `1.3.1` ships as `anytomd 1.3.1` — and binding-only fixes over the same engine add a post-release: `1.3.1.post1`. New engine releases are picked up automatically → [Self-maintenance](maintenance.md).

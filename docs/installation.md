@@ -32,7 +32,7 @@ Check what you got:
 ```python
 import anytomd
 
-print(anytomd.__version__)   # 1.3.1 — the anytomd-rs version embedded in this build
+print(anytomd.__version__)   # e.g. '1.3.1' — the anytomd-rs version embedded in this build
 ```
 
 ## From the repository

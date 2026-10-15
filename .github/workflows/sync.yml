@@ -1,6 +1,7 @@
 name: sync
 
-# On Renovate branches: package version follows the engine version, third-party licenses follow Cargo.lock.
+# On Renovate branches: package version follows the engine version, the changelog records the new engine,
+# third-party licenses follow Cargo.lock.
 # Deterministic; pushes with the App token so CI re-runs on the synced head.
 
 on:
@@ -16,7 +17,7 @@ concurrency:
 
 jobs:
   version:
-    name: versions and licenses
+    name: versions, changelog and licenses
     if: >
       startsWith(github.head_ref, 'renovate/') &&
       github.event.pull_request.head.repo.full_name == github.repository
@@ -46,6 +47,10 @@ jobs:
             cargo update --workspace
             uv lock
           fi
+          grep -q "anytomd-rs $ENGINE" CHANGELOG.md || awk -v line="- Engine: anytomd-rs $ENGINE ([release notes](https://github.com/developer0hye/anytomd-rs/releases/tag/v$ENGINE))." '
+            { print }
+            /^## \[Unreleased\]/ && !done { print ""; print "### Changed"; print ""; print line; done = 1 }
+          ' CHANGELOG.md > CHANGELOG.tmp && mv CHANGELOG.tmp CHANGELOG.md
           cargo about generate about.hbs | tr -d "\r" > THIRD_PARTY_LICENSES.md
           echo "engine=$ENGINE" >> "$GITHUB_OUTPUT"
           git diff --quiet && echo "changed=false" >> "$GITHUB_OUTPUT" || echo "changed=true" >> "$GITHUB_OUTPUT"
@@ -60,5 +65,5 @@ jobs:
         run: |
           git config user.name "$SLUG[bot]"
           git config user.email "$SLUG[bot]@users.noreply.github.com"
-          git commit -am "chore(sync): versions and licenses for anytomd-rs $ENGINE"
+          git commit -am "chore(sync): versions, changelog and licenses for anytomd-rs $ENGINE"
           git push "https://x-access-token:$TOKEN@github.com/${GITHUB_REPOSITORY}.git" "HEAD:$BRANCH"
