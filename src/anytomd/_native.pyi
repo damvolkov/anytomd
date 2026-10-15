@@ -5,10 +5,10 @@ from collections.abc import Awaitable, Callable
 from typing import Literal
 
 type WarningCode = Literal["skipped_element", "unsupported_feature", "resource_limit_reached", "malformed_segment"]
-type ImageDescriber = Callable[[bytes, str, str], str]
-type AsyncImageDescriber = Callable[[bytes, str, str], Awaitable[str]]
-type DescriberArg = ImageDescriber | GeminiDescriber
-type AsyncDescriberArg = AsyncImageDescriber | AsyncGeminiDescriber
+type DescribeCallable = Callable[[bytes, str, str], str]
+type AsyncDescribeCallable = Callable[[bytes, str, str], Awaitable[str]]
+type DescriberArg = DescribeCallable | GeminiDescriber
+type AsyncDescriberArg = AsyncDescribeCallable | AsyncGeminiDescriber
 
 class ConvertError(Exception): ...
 class UnsupportedFormatError(ConvertError): ...

@@ -57,7 +57,8 @@ Exception
 │   ├── ZipError                   Office container unreadable
 │   ├── XmlError                   XML unparseable
 │   ├── SpreadsheetError           workbook unreadable
-│   └── Utf8Error                  invalid UTF-8
+│   ├── Utf8Error                  invalid UTF-8
+│   └── PdfError                   PdfConverter could not read the PDF (anytomd[pdf])
 ├── OSError                        FileNotFoundError, PermissionError, IsADirectoryError… with errno and filename
 ├── TypeError                      a describer that is not callable
 └── RuntimeError                   an internal engine panic, reported instead of crashing the interpreter

@@ -75,6 +75,7 @@ nav:
       - Options: reference/options.md
       - Results: reference/results.md
       - Describers: reference/describers.md
+      - PDF: reference/pdf.md
       - Detection: reference/detection.md
       - Exceptions: reference/exceptions.md
   - Project:

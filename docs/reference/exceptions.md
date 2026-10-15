@@ -25,6 +25,7 @@ except ConvertError as error:
 | `XmlError` | XML unparseable | `failed to parse XML: …` |
 | `SpreadsheetError` | Workbook unreadable | `failed to read spreadsheet: …` |
 | `Utf8Error` | Content that must be UTF-8 is not | `invalid UTF-8 content: …` |
+| `PdfError` | [`PdfConverter`](pdf.md) (`anytomd[pdf]`) could not read the PDF | `liteparse could not read the document: PDF error: invalid PDF format` |
 
 ## `InputTooLargeError`
 

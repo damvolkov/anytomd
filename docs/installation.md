@@ -47,3 +47,23 @@ make build-release   # optimized build into the venv
 ## Optional: Gemini
 
 The built-in [`GeminiDescriber`](reference/describers.md#geminidescriber) and [`AsyncGeminiDescriber`](reference/describers.md#asyncgeminidescriber) are compiled in. They need a Google AI Studio key, passed explicitly or read from `GEMINI_API_KEY`. Nothing else to install.
+
+## Extras: what each one adds
+
+The base package has no Python dependencies; every extra adds one capability and names it, not the library that implements it:
+
+| Extra | Capability it adds | Library it installs |
+|---|---|---|
+| `[ocr]` | [`LiteParseDescriber`](reference/describers.md#liteparsedescriber): local OCR — readable text as alt text, offline, no key, no cost | `liteparse` (Rust, in-process, bundled Tesseract) |
+| `[vlm]` | [`OpenAIDescriber`](reference/describers.md#openaidescriber): vision answers from any OpenAI-compatible endpoint — OpenAI, Anthropic, Gemini, Vertex, local servers | `openai` (SDK only — the wire is the provider choice) |
+| `[pdf]` | [`PdfConverter`](reference/pdf.md): PDF to Markdown, OCR on by default — the format the engine refuses by design | `liteparse` (same wheel as `[ocr]`) |
+| `[full]` | All of the above plus [`ImageDescriber`](reference/describers.md#imagedescriber): OCR first, a vision model only for images that carry no text | — |
+
+```bash
+uv add "anytomd[full]"      # or pip install "anytomd[full]"
+uv add "anytomd[pdf]"       # just local PDF
+```
+
+!!! note "Why OpenAI-compatible instead of a provider SDK per vendor"
+
+    Anthropic, Google and Azure all publish official OpenAI-compatible endpoints with image support, so `api_base` + `model` is the provider switch. Anything the OpenAI wire cannot reach, the plain [describer callback](guide/images.md) can: bring your own client.

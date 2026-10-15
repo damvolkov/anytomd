@@ -33,7 +33,7 @@ convert_file(
     max_input_bytes: int = 8 * 1024**3,
     max_total_image_bytes: int = 4 * 1024**3,
     max_uncompressed_zip_bytes: int = 16 * 1024**3,
-    image_describer: ImageDescriber | GeminiDescriber | None = None,
+    image_describer: DescribeCallable | GeminiDescriber | None = None,
 ) -> ConversionResult
 ```
 
@@ -74,7 +74,7 @@ convert_bytes(
     max_input_bytes: int = 8 * 1024**3,
     max_total_image_bytes: int = 4 * 1024**3,
     max_uncompressed_zip_bytes: int = 16 * 1024**3,
-    image_describer: ImageDescriber | GeminiDescriber | None = None,
+    image_describer: DescribeCallable | GeminiDescriber | None = None,
 ) -> ConversionResult
 ```
 
@@ -115,7 +115,7 @@ async def convert_file_async(
     max_input_bytes: int = 8 * 1024**3,
     max_total_image_bytes: int = 4 * 1024**3,
     max_uncompressed_zip_bytes: int = 16 * 1024**3,
-    async_image_describer: AsyncImageDescriber | AsyncGeminiDescriber | None = None,
+    async_image_describer: AsyncDescribeCallable | AsyncGeminiDescriber | None = None,
 ) -> ConversionResult
 ```
 
@@ -144,7 +144,7 @@ async def convert_bytes_async(
     max_input_bytes: int = 8 * 1024**3,
     max_total_image_bytes: int = 4 * 1024**3,
     max_uncompressed_zip_bytes: int = 16 * 1024**3,
-    async_image_describer: AsyncImageDescriber | AsyncGeminiDescriber | None = None,
+    async_image_describer: AsyncDescribeCallable | AsyncGeminiDescriber | None = None,
 ) -> ConversionResult
 ```
 

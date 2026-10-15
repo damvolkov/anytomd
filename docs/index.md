@@ -58,7 +58,7 @@ Inline type stubs, `py.typed`, a typed exception tree and typed warnings. Your t
 
 ## What it converts
 
-DOCX, PPTX, XLSX, XLS, HTML, CSV, Jupyter notebooks, JSON, XML, images (PNG, JPEG, GIF, WebP, BMP, TIFF, SVG, HEIC, AVIF), source code and plain text. PDF is refused on purpose: current LLMs read PDF natively. Full matrix → [Formats](guide/formats.md).
+DOCX, PPTX, XLSX, XLS, HTML, CSV, Jupyter notebooks, JSON, XML, images (PNG, JPEG, GIF, WebP, BMP, TIFF, SVG, HEIC, AVIF), source code and plain text. PDF is refused on purpose: current LLMs read PDF natively — or parse it locally with the optional [`pdf` extra](installation.md#extras-what-each-one-adds). Full matrix → [Formats](guide/formats.md).
 
 ## Where to go next
 

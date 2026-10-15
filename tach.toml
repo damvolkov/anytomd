@@ -18,8 +18,28 @@ unused_ignore_directives = "error"
 
 [[modules]]
 path = "anytomd"
-depends_on = ["anytomd._native"]
+depends_on = ["anytomd._native", "anytomd.converters", "anytomd.describers", "anytomd.documents", "anytomd.errors"]
+
+[[modules]]
+path = "anytomd._capabilities"
+depends_on = []
 
 [[modules]]
 path = "anytomd._native"
 depends_on = []
+
+[[modules]]
+path = "anytomd.describers"
+depends_on = ["anytomd._capabilities"]
+
+[[modules]]
+path = "anytomd.converters"
+depends_on = ["anytomd._capabilities", "anytomd.documents", "anytomd.errors"]
+
+[[modules]]
+path = "anytomd.documents"
+depends_on = []
+
+[[modules]]
+path = "anytomd.errors"
+depends_on = ["anytomd._native"]
