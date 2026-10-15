@@ -1,0 +1,132 @@
+[build-system]
+requires = ["maturin>=1.10"]
+build-backend = "maturin"
+
+[project]
+name = "anytomd"
+dynamic = ["version"]
+description = "Any document to clean Markdown — thin Python binding of the pure-Rust anytomd-rs engine."
+readme = "README.md"
+requires-python = ">=3.14"
+license = "MIT"
+license-files = ["LICEN[CS]E*"]
+authors = [{ name = "damvolkov", email = "damvolkovv@gmail.com" }]
+keywords = ["markdown", "document", "conversion", "docx", "pptx", "xlsx", "html", "ocr", "rust"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Text Processing :: Markup :: Markdown",
+    "Typing :: Typed",
+]
+
+[project.urls]
+Homepage = "https://github.com/damvolkov/anytomd"
+Source = "https://github.com/damvolkov/anytomd"
+Issues = "https://github.com/damvolkov/anytomd/issues"
+Upstream = "https://github.com/developer0hye/anytomd-rs"
+
+[dependency-groups]
+lint = [
+    "ruff>=0.16",
+    "ty>=0.0.75",
+    "tach>=0.30",
+    "validate-pyproject[all]>=0.26",
+]
+test = [
+    "pytest>=9.1",
+    "pytest-asyncio>=1.4",
+    "pytest-cov>=7.1",
+    "pytest-xdist[psutil]>=3.8",
+    "pytest-randomly>=5.0",
+    "pytest-timeout>=2.4",
+    "hypothesis>=6.150",
+    "pytest-resources[files,random]>=0.3",
+]
+build = [
+    "maturin>=1.10",
+]
+dev = [
+    { include-group = "lint" },
+    { include-group = "test" },
+    { include-group = "build" },
+    "prek>=0.4",
+]
+
+[tool.uv]
+required-version = ">=0.12"
+default-groups = ["dev"]
+cache-keys = [{ file = "pyproject.toml" }, { file = "Cargo.toml" }, { file = "Cargo.lock" }]
+
+[tool.maturin]
+manifest-path = "crates/native/Cargo.toml"
+module-name = "anytomd._native"
+python-source = "src"
+features = ["pyo3/extension-module"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+src = ["src", "tests"]
+exclude = ["tests/resources"]
+
+[tool.ruff.lint]
+select = [
+    "F", "E", "W", "I", "N", "UP", "B", "A", "C4", "DTZ", "T10", "T20", "EM", "ISC",
+    "PIE", "PT", "RET", "SIM", "TID", "TC", "ARG", "PTH", "PL", "PERF", "FURB",
+    "ASYNC", "S", "BLE", "FBT", "LOG", "G", "RUF",
+]
+ignore = ["E501", "ISC001", "PLR0913"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "PLR2004", "ARG", "FBT"]
+"tests/conftest.py" = ["S310"]
+"tools/*.py" = ["S310"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["anytomd", "tests"]
+
+[tool.ruff.lint.flake8-builtins]
+ignorelist = ["format"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.ty.environment]
+python-version = "3.14"
+
+[tool.ty.src]
+include = ["src", "tests"]
+exclude = ["tests/resources"]
+
+[tool.ty.terminal]
+error-on-warning = true
+
+[tool.pytest]
+minversion = "9.0"
+testpaths = ["tests"]
+addopts = ["--import-mode=importlib", "-ra", "-m", "not stress and not integration"]
+pythonpath = ["."]
+strict = true
+filterwarnings = ["error"]
+timeout = "60"
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "slow: slow tests (deselect with -m 'not slow')",
+    "stress: concurrency and volume stress (run via make stress)",
+    "integration: third-party LLM provider calls (run via make integration)",
+]
+
+[tool.coverage.run]
+source_pkgs = ["anytomd"]
+branch = true
+parallel = true
+
+[tool.coverage.report]
+fail_under = 100
+show_missing = true
+skip_covered = false
+exclude_also = ["if TYPE_CHECKING:", "@overload"]

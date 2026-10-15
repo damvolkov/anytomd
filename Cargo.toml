@@ -1,0 +1,20 @@
+[workspace]
+resolver = "3"
+members = ["crates/native"]
+
+[workspace.package]
+version = "1.3.1"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/damvolkov/anytomd"
+
+[workspace.dependencies]
+pyo3 = { version = "0.29", features = ["extension-module", "abi3-py314", "experimental-async"] }
+anytomd = { version = "=1.3.1", features = ["async-gemini"] }
+tokio = { version = "1", features = ["rt-multi-thread", "sync"] }
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+strip = "symbols"
+panic = "abort"
