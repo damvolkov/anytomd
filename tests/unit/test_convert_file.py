@@ -43,7 +43,7 @@ def test_convert_file_autodetects_zip_format_by_content(path_of, tmp_path):
 
 def test_convert_file_rejects_missing_path(tmp_path):
     target = tmp_path / "absent.docx"
-    with pytest.raises(FileNotFoundError, match="No such file") as caught:
+    with pytest.raises(FileNotFoundError) as caught:
         anytomd.convert_file(target)
     assert caught.value.errno == errno.ENOENT
     assert caught.value.filename == str(target)

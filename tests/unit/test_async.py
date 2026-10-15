@@ -29,7 +29,7 @@ async def test_convert_bytes_async_rejects_pdf():
 
 
 async def test_convert_file_async_missing_path(tmp_path):
-    with pytest.raises(OSError, match="No such file"):
+    with pytest.raises(FileNotFoundError):
         await anytomd.convert_file_async(tmp_path / "absent.txt")
 
 
