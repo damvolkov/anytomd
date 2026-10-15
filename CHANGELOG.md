@@ -4,6 +4,15 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [1.3.1.post3] - 2026-10-15
+
+Documentation only; same code as 1.3.1.post2.
+
+### Changed
+
+- README reduced to the essentials and a map of the documentation site, which carries the full usage.
+- Quickstart and home page cover the optional OCR, vision and PDF capabilities and self-maintenance.
+
 ## [1.3.1.post2] - 2026-10-15
 
 Optional capabilities over the same engine (anytomd-rs 1.3.1). The base wheel keeps zero Python dependencies.

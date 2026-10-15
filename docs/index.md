@@ -51,6 +51,14 @@ Conversions run with the GIL released: threads convert in parallel, the interpre
 Plug any callable — your OpenAI, Anthropic or local model — or the built-in Gemini describers, to replace image placeholders with real descriptions.
 </div>
 <div markdown>
+### Optional OCR, vision and PDF
+`anytomd[full]` adds local OCR, any OpenAI-compatible vision model and a local PDF reader — the base wheel stays dependency-free.
+</div>
+<div markdown>
+### Self-maintaining
+Renovate, deterministic sync and an LLM agent keep the binding aligned with every anytomd-rs release; a human merges.
+</div>
+<div markdown>
 ### Typed end to end
 Inline type stubs, `py.typed`, a typed exception tree and typed warnings. Your type checker sees the whole surface.
 </div>
@@ -66,6 +74,7 @@ DOCX, PPTX, XLSX, XLS, HTML, CSV, Jupyter notebooks, JSON, XML, images (PNG, JPE
 - [Quickstart](quickstart.md) — the five calls you will actually use.
 - [Reference](reference/conversion.md) — every function, option, class and exception, one by one.
 - [Upstream and versioning](upstream.md) — how this binding tracks anytomd-rs.
+- [Self-maintenance](maintenance.md) — what updates itself, with which tool, and what stays human.
 
 !!! info "Relationship to anytomd-rs"
     anytomd-rs is written and maintained by [developer0hye](https://github.com/developer0hye). This package is a binding of it for Python; conversion quality, format coverage and performance belong to the upstream project, and so do its [benchmarks](https://github.com/developer0hye/anytomd-rs). Bugs in the Markdown output are upstream issues; bugs in the Python surface belong [here](https://github.com/damvolkov/anytomd/issues).
