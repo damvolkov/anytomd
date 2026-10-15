@@ -6,8 +6,11 @@ import anytomd
 
 
 def test_shredded_docx_raises_zip_error(raw):
-    with pytest.raises(anytomd.ZipError):
+    with pytest.raises(anytomd.ZipError) as caught:
         anytomd.convert_bytes(raw("shredded.docx"), "docx")
+    message = str(caught.value)
+    assert message.count("failed to read ZIP archive") == 1
+    assert message != "failed to read ZIP archive"
 
 
 def test_hollow_docx_raises_malformed_document(raw):

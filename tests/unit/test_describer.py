@@ -44,6 +44,11 @@ def test_describer_exception_degrades_to_warning(single_image_docx):
     assert result.warnings[0].code == "skipped_element"
 
 
+def test_non_callable_describer_is_rejected_upfront(single_image_docx):
+    with pytest.raises(TypeError, match="callable"):
+        anytomd.convert_bytes(single_image_docx, "docx", image_describer="not callable")  # ty: ignore[invalid-argument-type]
+
+
 def test_strict_promotes_describer_failure(single_image_docx):
     def describer(image, mime_type, prompt):
         msg = "nope"
@@ -101,6 +106,18 @@ def test_async_gemini_describer_constructs_from_explicit_key():
     assert anytomd.AsyncGeminiDescriber("fake-key") is not None
 
 
+def test_async_gemini_describer_accepts_model_override():
+    assert anytomd.AsyncGeminiDescriber("fake-key", model="gemini-custom") is not None
+
+
+async def test_async_gemini_describer_flows_through_rust_dispatch(raw):
+    ### deck.pptx holds no images: the native describer is wired but never reaches the network.
+    describer = anytomd.AsyncGeminiDescriber("fake-key")
+    result = await anytomd.convert_bytes_async(raw("deck.pptx"), "pptx", async_image_describer=describer)
+    assert "Launch Plan" in result.markdown
+    assert result.warnings == []
+
+
 def test_async_gemini_describer_without_environment_raises(monkeypatch):
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     with pytest.raises(anytomd.ImageDescriptionError):
@@ -108,8 +125,8 @@ def test_async_gemini_describer_without_environment_raises(monkeypatch):
 
 
 def test_gemini_describer_flows_through_rust_dispatch(raw):
-    ### The image in report.docx already carries a descr, so the native describer is
-    ### accepted and wired without ever reaching the network in this unit test.
+    ### deck.pptx holds no images: the native describer is wired but never reaches the network.
     describer = anytomd.GeminiDescriber("fake-key")
-    result = anytomd.convert_bytes(raw("report.docx"), "docx", image_describer=describer)
-    assert "Sales chart" in result.markdown
+    result = anytomd.convert_bytes(raw("deck.pptx"), "pptx", image_describer=describer)
+    assert "Launch Plan" in result.markdown
+    assert result.warnings == []

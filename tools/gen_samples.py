@@ -125,7 +125,7 @@ DOCX_PARTS: dict[str, bytes | str] = {
 DOCX = _zip(DOCX_PARTS)
 
 
-def docx_with(document_xml: object) -> bytes:
+def docx_with(document_xml: bytes | str) -> bytes:
     """DOCX archive whose word/document.xml is replaced verbatim."""
     parts = dict(DOCX_PARTS)
     parts["word/document.xml"] = document_xml

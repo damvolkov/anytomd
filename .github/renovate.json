@@ -1,0 +1,43 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":dependencyDashboard"],
+  "enabledManagers": ["cargo", "pep621", "github-actions"],
+  "schedule": ["before 6am on monday"],
+  "timezone": "Europe/Madrid",
+  "prConcurrentLimit": 3,
+  "abandonmentThreshold": "1 year",
+  "rangeStrategy": "bump",
+  "lockFileMaintenance": { "enabled": false },
+  "packageRules": [
+    {
+      "description": "The engine: react at once, one PR per release, version synced by sync.yml, gaps filled by ai-fix.yml.",
+      "matchManagers": ["cargo"],
+      "matchPackageNames": ["anytomd"],
+      "schedule": ["at any time"],
+      "labels": ["upstream-update"],
+      "commitMessagePrefix": "upstream:",
+      "automerge": false
+    },
+    {
+      "description": "PyO3 and tokio shape the binding itself: separate PRs, ai-fix repairs breakage.",
+      "matchManagers": ["cargo"],
+      "matchPackageNames": ["pyo3", "tokio"],
+      "labels": ["binding-update"],
+      "automerge": false
+    },
+    {
+      "description": "Python tooling: one weekly PR.",
+      "matchManagers": ["pep621"],
+      "groupName": "python tooling",
+      "labels": ["tooling"]
+    },
+    {
+      "description": "Workflow actions stay pinned by digest; one monthly PR.",
+      "matchManagers": ["github-actions"],
+      "groupName": "github actions",
+      "pinDigests": true,
+      "schedule": ["before 6am on the first day of the month"],
+      "labels": ["tooling"]
+    }
+  ]
+}

@@ -39,7 +39,7 @@ class ConversionResult:
 
 class GeminiDescriber:
     def __init__(self, api_key: str | None = None, model: str | None = None) -> None: ...
-    def __call__(self, image: bytes, mime_type: str, prompt: str) -> str: ...
+    def __call__(self, image: bytes | bytearray, mime_type: str, prompt: str) -> str: ...
 
 class AsyncGeminiDescriber:
     def __init__(self, api_key: str | None = None, model: str | None = None) -> None: ...
@@ -56,7 +56,7 @@ def convert_file(
     image_describer: DescriberArg | None = None,
 ) -> ConversionResult: ...
 def convert_bytes(
-    data: bytes,
+    data: bytes | bytearray,
     format: str,
     *,
     extract_images: bool = False,
@@ -79,7 +79,7 @@ async def convert_file_async(
     async_image_describer: AsyncDescriberArg | None = None,
 ) -> ConversionResult: ...
 async def convert_bytes_async(
-    data: bytes,
+    data: bytes | bytearray,
     format: str,
     *,
     extract_images: bool = False,
@@ -90,7 +90,7 @@ async def convert_bytes_async(
     max_uncompressed_zip_bytes: int = 17179869184,
     async_image_describer: AsyncDescriberArg | None = None,
 ) -> ConversionResult: ...
-def detect_format(path: str | os.PathLike[str], data: bytes) -> str | None: ...
-def detect_zip_format(data: bytes) -> str | None: ...
+def detect_format(path: str | os.PathLike[str], data: bytes | bytearray) -> str | None: ...
+def detect_zip_format(data: bytes | bytearray) -> str | None: ...
 
 __version__: str

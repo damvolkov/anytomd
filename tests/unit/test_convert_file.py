@@ -1,6 +1,8 @@
 """convert_file: path shapes, autodetection, I/O failures."""
 
+import errno
 import os
+import sys
 
 import pytest
 
@@ -40,13 +42,24 @@ def test_convert_file_autodetects_zip_format_by_content(path_of, tmp_path):
 
 
 def test_convert_file_rejects_missing_path(tmp_path):
-    with pytest.raises(OSError, match="No such file"):
-        anytomd.convert_file(tmp_path / "absent.docx")
+    target = tmp_path / "absent.docx"
+    with pytest.raises(FileNotFoundError, match="No such file") as caught:
+        anytomd.convert_file(target)
+    assert caught.value.errno == errno.ENOENT
+    assert caught.value.filename == str(target)
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="Windows reports directories as PermissionError")
 def test_convert_file_rejects_directory(tmp_path):
-    with pytest.raises(OSError, match="Is a directory"):
+    with pytest.raises(IsADirectoryError, match="Is a directory"):
         anytomd.convert_file(tmp_path)
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="only Linux file systems accept undecodable names")
+def test_convert_file_accepts_undecodable_path(tmp_path):
+    target = tmp_path / os.fsdecode(b"memo-\xff.txt")
+    target.write_bytes(b"undecodable name")
+    assert anytomd.convert_file(target).markdown == "undecodable name"
 
 
 def test_convert_file_rejects_oversized_input(path_of):

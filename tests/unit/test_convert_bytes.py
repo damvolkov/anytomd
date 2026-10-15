@@ -56,6 +56,11 @@ def test_convert_bytes_format_is_normalized(raw):
     assert "| Alice | 30 |" in dotted.markdown
 
 
+def test_convert_bytes_accepts_bytearray(raw):
+    result = anytomd.convert_bytes(bytearray(raw("table.csv")), "csv")
+    assert "| Alice | 30 |" in result.markdown
+
+
 def test_convert_bytes_empty_text_yields_empty_markdown():
     result = anytomd.convert_bytes(b"", "txt")
     assert result.markdown == ""

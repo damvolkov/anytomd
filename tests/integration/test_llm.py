@@ -1,6 +1,6 @@
 """Integration: real image description through the configured OpenAI-compatible provider.
 
-The provider defaults to Damien's Alibaba token-plan endpoint (Anthropic-compatible
+The provider defaults to an Alibaba token-plan endpoint (Anthropic-compatible
 messages API) and honours ANYTOMD_LLM_BASE_URL / ANYTOMD_LLM_API_KEY / ANYTOMD_LLM_MODEL
 for any other OpenAI-compatible gateway. Skipped without a key.
 """
@@ -27,8 +27,12 @@ def test_sync_describer_uses_provider(llm, gallery_docx):
 
 
 def test_async_describer_uses_provider(llm, gallery_docx):
+    ### Provider burst limits answer 429 to simultaneous calls; concurrency itself is covered by the unit suite.
+    gate = asyncio.Semaphore(1)
+
     async def describer(image: bytes, mime_type: str, prompt: str) -> str:
-        return await asyncio.to_thread(llm.describe, image, mime_type, prompt)
+        async with gate:
+            return await asyncio.to_thread(llm.describe, image, mime_type, prompt)
 
     result = asyncio.run(
         anytomd.convert_bytes_async(gallery_docx, "docx", extract_images=True, async_image_describer=describer)
@@ -37,6 +41,12 @@ def test_async_describer_uses_provider(llm, gallery_docx):
     assert result.warnings == []
     assert len(alts) == 3
     assert all(alt not in ("image1.png", "image2.png", "image3.png") for alt in alts)
+
+
+def test_gemini_describer_call_reports_provider_rejection():
+    describer = anytomd.GeminiDescriber("invalid-key")
+    with pytest.raises(anytomd.ImageDescriptionError, match="Gemini"):
+        describer(b"\x89PNG\r\n\x1a\n", "image/png", "Describe this image.")
 
 
 def test_descriptions_carry_visual_content(llm, single_image_docx):

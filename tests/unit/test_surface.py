@@ -23,7 +23,8 @@ def test_public_surface_is_complete():
 
 
 def test_version_is_exposed():
-    parts = anytomd._native.__version__.split(".")
+    assert anytomd.__version__ == anytomd._native.__version__
+    parts = anytomd.__version__.split(".")
     assert len(parts) == 3
     assert all(p.isdigit() for p in parts)
 

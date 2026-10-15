@@ -44,6 +44,44 @@ async def test_async_describer_replaces_placeholders(gallery_docx):
     assert result.markdown.count("async alt") == 3
 
 
+async def test_async_describer_needs_no_extract_images(gallery_docx):
+    async def describer(image, mime_type, prompt):
+        return "implicit alt"
+
+    result = await anytomd.convert_bytes_async(gallery_docx, "docx", async_image_describer=describer)
+    assert result.markdown.count("implicit alt") == 3
+    assert result.images == []
+
+
+async def test_async_non_callable_describer_is_rejected_upfront(gallery_docx):
+    with pytest.raises(TypeError, match="callable"):
+        await anytomd.convert_bytes_async(gallery_docx, "docx", async_image_describer=42)  # ty: ignore[invalid-argument-type]
+
+
+async def test_async_cancellation_reaches_the_describers(gallery_docx):
+    started = asyncio.Event()
+    settled = asyncio.Event()
+    cancelled = []
+
+    async def describer(image, mime_type, prompt):
+        started.set()
+        try:
+            await asyncio.sleep(30)
+        except asyncio.CancelledError:
+            cancelled.append(1)
+            _ = len(cancelled) == 3 and settled.set()
+            raise
+        return "never"
+
+    task = asyncio.create_task(anytomd.convert_bytes_async(gallery_docx, "docx", async_image_describer=describer))
+    await asyncio.wait_for(started.wait(), 5)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    await asyncio.wait_for(settled.wait(), 5)
+    assert len(cancelled) == 3
+
+
 async def test_async_describer_runs_images_concurrently(gallery_docx):
     async def describer(image, mime_type, prompt):
         await asyncio.sleep(0.25)
@@ -93,6 +131,14 @@ async def test_async_describer_exception_degrades_to_warning(single_image_docx):
         single_image_docx, "docx", extract_images=True, async_image_describer=describer
     )
     assert result.warnings[0].code == "skipped_element"
+
+
+async def test_sync_callable_as_async_describer_degrades_to_warning(single_image_docx):
+    def not_a_coroutine(image, mime_type, prompt):
+        return "sync alt"
+
+    result = await anytomd.convert_bytes_async(single_image_docx, "docx", async_image_describer=not_a_coroutine)
+    assert [w.code for w in result.warnings] == ["skipped_element"]
 
 
 async def test_async_describer_non_string_degrades_to_warning(single_image_docx):

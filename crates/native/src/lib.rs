@@ -1,10 +1,16 @@
 // ##### DEPENDENCIES #####
 
-use std::borrow::Cow;
+use std::any::Any;
+use std::future::Future;
+use std::panic::AssertUnwindSafe;
 use std::path::Path;
+use std::path::PathBuf;
+use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::OnceLock;
+use std::task::Context;
+use std::task::Poll;
 
 use anytomd::AsyncConversionOptions;
 use anytomd::AsyncImageDescriber;
@@ -22,11 +28,17 @@ use anytomd::gemini::GeminiDescriber as RsGemini;
 use pyo3::exceptions::PyException;
 use pyo3::exceptions::PyOSError;
 use pyo3::exceptions::PyRuntimeError;
+use pyo3::exceptions::PyTypeError;
 use pyo3::prelude::*;
+use pyo3::pybacked::PyBackedBytes;
 use pyo3::types::PyBytes;
+use pyo3::types::PyString;
 use tokio::sync::oneshot;
+use tokio::task::JoinError;
+use tokio::task::JoinHandle;
 
 type PyObj = Py<PyAny>;
+type Outcome = Result<anytomd::ConversionResult, anytomd::ConvertError>;
 
 const DEFAULT_MAX_INPUT_BYTES: usize = 8 * 1024 * 1024 * 1024;
 const DEFAULT_MAX_TOTAL_IMAGE_BYTES: usize = 4 * 1024 * 1024 * 1024;
@@ -34,18 +46,68 @@ const DEFAULT_MAX_UNCOMPRESSED_ZIP_BYTES: usize = 16 * 1024 * 1024 * 1024;
 
 // ##### EXCEPTIONS #####
 
-pyo3::create_exception!(anytomd._native, ConvertError, PyException);
-pyo3::create_exception!(anytomd._native, UnsupportedFormatError, ConvertError);
-pyo3::create_exception!(anytomd._native, FormatNotSupportedError, ConvertError);
-pyo3::create_exception!(anytomd._native, InputTooLargeError, ConvertError);
-pyo3::create_exception!(anytomd._native, MalformedDocumentError, ConvertError);
-pyo3::create_exception!(anytomd._native, ImageDescriptionError, ConvertError);
-pyo3::create_exception!(anytomd._native, ZipError, ConvertError);
-pyo3::create_exception!(anytomd._native, XmlError, ConvertError);
-pyo3::create_exception!(anytomd._native, SpreadsheetError, ConvertError);
-pyo3::create_exception!(anytomd._native, Utf8Error, ConvertError);
+pyo3::create_exception!(
+    anytomd._native,
+    ConvertError,
+    PyException,
+    "Base of every conversion failure."
+);
+pyo3::create_exception!(
+    anytomd._native,
+    UnsupportedFormatError,
+    ConvertError,
+    "No converter recognizes the format."
+);
+pyo3::create_exception!(
+    anytomd._native,
+    FormatNotSupportedError,
+    ConvertError,
+    "Format recognized but intentionally refused (PDF)."
+);
+pyo3::create_exception!(
+    anytomd._native,
+    InputTooLargeError,
+    ConvertError,
+    "Input or decompressed archive exceeds its limit; carries `size` and `limit`."
+);
+pyo3::create_exception!(
+    anytomd._native,
+    MalformedDocumentError,
+    ConvertError,
+    "Document structure broken beyond recovery, or a warning under `strict=True`."
+);
+pyo3::create_exception!(
+    anytomd._native,
+    ImageDescriptionError,
+    ConvertError,
+    "An image describer could not be built or failed."
+);
+pyo3::create_exception!(
+    anytomd._native,
+    ZipError,
+    ConvertError,
+    "ZIP container (DOCX, PPTX, XLSX) unreadable."
+);
+pyo3::create_exception!(
+    anytomd._native,
+    XmlError,
+    ConvertError,
+    "XML inside the document unparseable."
+);
+pyo3::create_exception!(
+    anytomd._native,
+    SpreadsheetError,
+    ConvertError,
+    "Workbook (XLSX, XLS) unreadable."
+);
+pyo3::create_exception!(
+    anytomd._native,
+    Utf8Error,
+    ConvertError,
+    "Content is not valid UTF-8."
+);
 
-fn to_py_err(py: Python<'_>, error: anytomd::ConvertError) -> PyErr {
+fn to_py_err(py: Python<'_>, error: anytomd::ConvertError, path: Option<&Path>) -> PyErr {
     use anytomd::ConvertError as E;
     let message = error.to_string();
     match error {
@@ -60,86 +122,151 @@ fn to_py_err(py: Python<'_>, error: anytomd::ConvertError) -> PyErr {
         }
         E::MalformedDocument { .. } => MalformedDocumentError::new_err(message),
         E::ImageDescriptionError { .. } => ImageDescriptionError::new_err(message),
-        E::ZipError(_) => ZipError::new_err(format!("failed to read ZIP archive: {message}")),
-        E::XmlError(_) => XmlError::new_err(format!("failed to parse XML: {message}")),
-        E::SpreadsheetError(_) => {
-            SpreadsheetError::new_err(format!("failed to read spreadsheet: {message}"))
-        }
-        E::Utf8Error(_) => Utf8Error::new_err(format!("invalid UTF-8 content: {message}")),
-        E::Io(source) => PyOSError::new_err(format!("I/O error: {source}")),
+        E::ZipError(source) => ZipError::new_err(format!("{message}: {source}")),
+        E::XmlError(source) => XmlError::new_err(format!("{message}: {source}")),
+        E::SpreadsheetError(source) => SpreadsheetError::new_err(format!("{message}: {source}")),
+        E::Utf8Error(source) => Utf8Error::new_err(format!("{message}: {source}")),
+        E::Io(source) => os_error(py, source, path),
     }
+}
+
+fn os_error(py: Python<'_>, error: std::io::Error, path: Option<&Path>) -> PyErr {
+    let (Some(code), Some(path)) = (error.raw_os_error(), path) else {
+        return PyErr::from(error);
+    };
+    os_error_from(py, code, path.to_string_lossy().into_owned())
+}
+
+#[cfg(not(windows))]
+fn os_error_from(py: Python<'_>, code: i32, filename: String) -> PyErr {
+    py.import("os")
+        .and_then(|os| os.call_method1("strerror", (code,)))
+        .map_or_else(
+            |failure| failure,
+            |strerror| PyOSError::new_err((code, strerror.unbind(), filename)),
+        )
+}
+
+// Win32 codes go in `winerror`; Python derives errno and the OSError subclass from it.
+#[cfg(windows)]
+fn os_error_from(_py: Python<'_>, code: i32, filename: String) -> PyErr {
+    let strerror = std::io::Error::from_raw_os_error(code).to_string();
+    PyOSError::new_err((0, strerror, filename, code))
+}
+
+fn panicked(reason: &str) -> PyErr {
+    PyRuntimeError::new_err(format!("conversion panicked: {reason}"))
+}
+
+fn panic_reason(payload: &(dyn Any + Send)) -> &str {
+    payload
+        .downcast_ref::<&str>()
+        .copied()
+        .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
+        .unwrap_or("unknown panic")
+}
+
+fn join_reason(error: JoinError) -> PyErr {
+    panicked(&error.to_string())
 }
 
 // ##### RESULT #####
 
+/// Outcome of one conversion: Markdown, plain text, title, extracted images and warnings.
 #[pyclass(module = "anytomd._native", frozen, skip_from_py_object)]
-#[derive(Clone)]
 pub struct ConversionResult {
-    inner: anytomd::ConversionResult,
+    markdown: Py<PyString>,
+    plain_text: Py<PyString>,
+    title: Option<Py<PyString>>,
+    images: Vec<(Py<PyString>, Py<PyBytes>)>,
+    warnings: Vec<Py<ConversionWarning>>,
 }
 
-impl From<anytomd::ConversionResult> for ConversionResult {
-    fn from(inner: anytomd::ConversionResult) -> Self {
-        Self { inner }
+impl ConversionResult {
+    fn build(py: Python<'_>, inner: anytomd::ConversionResult) -> PyResult<Self> {
+        Ok(Self {
+            markdown: PyString::new(py, &inner.markdown).unbind(),
+            plain_text: PyString::new(py, &inner.plain_text).unbind(),
+            title: inner.title.map(|title| PyString::new(py, &title).unbind()),
+            images: inner
+                .images
+                .iter()
+                .map(|(name, data)| {
+                    (
+                        PyString::new(py, name).unbind(),
+                        PyBytes::new(py, data).unbind(),
+                    )
+                })
+                .collect(),
+            warnings: inner
+                .warnings
+                .iter()
+                .map(|warning| Py::new(py, ConversionWarning::from(warning)))
+                .collect::<PyResult<_>>()?,
+        })
     }
 }
 
 #[pymethods]
 impl ConversionResult {
+    /// Converted Markdown.
     #[getter]
-    fn markdown(&self) -> String {
-        self.inner.markdown.clone()
+    fn markdown(&self, py: Python<'_>) -> Py<PyString> {
+        self.markdown.clone_ref(py)
     }
 
+    /// Same content without Markdown syntax, extracted directly from the source.
     #[getter]
-    fn plain_text(&self) -> String {
-        self.inner.plain_text.clone()
+    fn plain_text(&self, py: Python<'_>) -> Py<PyString> {
+        self.plain_text.clone_ref(py)
     }
 
+    /// Document title (first heading or HTML `<title>`), or None.
     #[getter]
-    fn title(&self) -> Option<String> {
-        self.inner.title.clone()
+    fn title(&self, py: Python<'_>) -> Option<Py<PyString>> {
+        self.title.as_ref().map(|title| title.clone_ref(py))
     }
 
+    /// Embedded images as `(filename, bytes)`; empty unless `extract_images=True`.
     #[getter]
-    fn images(&self, py: Python<'_>) -> Vec<(String, PyObj)> {
-        self.inner
-            .images
+    fn images(&self, py: Python<'_>) -> Vec<(Py<PyString>, Py<PyBytes>)> {
+        self.images
             .iter()
-            .map(|(name, data)| {
-                (
-                    name.clone(),
-                    PyBytes::new(py, data).as_any().clone().unbind(),
-                )
-            })
+            .map(|(name, data)| (name.clone_ref(py), data.clone_ref(py)))
             .collect()
     }
 
+    /// Recoverable problems met during a best-effort conversion.
     #[getter]
-    fn warnings(&self) -> Vec<ConversionWarning> {
-        self.inner
-            .warnings
+    fn warnings(&self, py: Python<'_>) -> Vec<Py<ConversionWarning>> {
+        self.warnings
             .iter()
-            .map(ConversionWarning::from)
+            .map(|warning| warning.clone_ref(py))
             .collect()
     }
 
-    fn __repr__(&self) -> String {
-        format!(
-            "ConversionResult(markdown={} chars, title={:?}, images={}, warnings={})",
-            self.inner.markdown.len(),
-            self.inner.title,
-            self.inner.images.len(),
-            self.inner.warnings.len(),
-        )
+    fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
+        let title = match &self.title {
+            Some(title) => title.bind(py).repr()?.to_string(),
+            None => "None".to_string(),
+        };
+        Ok(format!(
+            "ConversionResult(markdown={} chars, title={title}, images={}, warnings={})",
+            self.markdown.bind(py).len()?,
+            self.images.len(),
+            self.warnings.len(),
+        ))
     }
 }
 
-#[pyclass(module = "anytomd._native", frozen, skip_from_py_object)]
-#[derive(Clone)]
+/// A recoverable problem: `code`, human `message` and optional `location`.
+#[pyclass(module = "anytomd._native", frozen, get_all, skip_from_py_object)]
 pub struct ConversionWarning {
-    code: String,
+    /// One of `skipped_element`, `unsupported_feature`, `resource_limit_reached`, `malformed_segment`.
+    code: &'static str,
+    /// Human-readable explanation.
     message: String,
+    /// Where it happened (image name, sheet, slide…), when known.
     location: Option<String>,
 }
 
@@ -152,7 +279,7 @@ impl From<&anytomd::ConversionWarning> for ConversionWarning {
             WarningCode::MalformedSegment => "malformed_segment",
         };
         Self {
-            code: code.to_string(),
+            code,
             message: warning.message.clone(),
             location: warning.location.clone(),
         }
@@ -161,25 +288,14 @@ impl From<&anytomd::ConversionWarning> for ConversionWarning {
 
 #[pymethods]
 impl ConversionWarning {
-    #[getter]
-    fn code(&self) -> String {
-        self.code.clone()
-    }
-
-    #[getter]
-    fn message(&self) -> String {
-        self.message.clone()
-    }
-
-    #[getter]
-    fn location(&self) -> Option<String> {
-        self.location.clone()
-    }
-
     fn __repr__(&self) -> String {
+        let location = self
+            .location
+            .as_deref()
+            .map_or_else(|| "None".to_string(), |location| format!("{location:?}"));
         format!(
-            "ConversionWarning(code={:?}, message={:?}, location={:?})",
-            self.code, self.message, self.location
+            "ConversionWarning(code={:?}, message={:?}, location={location})",
+            self.code, self.message
         )
     }
 }
@@ -212,6 +328,25 @@ struct PythonAsyncDescriber {
     loop_: PyObj,
 }
 
+/// Python-side future of one description; cancelled if dropped before it settles.
+struct PendingCall(Option<PyObj>);
+
+impl PendingCall {
+    fn settle(mut self) {
+        self.0 = None;
+    }
+}
+
+impl Drop for PendingCall {
+    fn drop(&mut self) {
+        if let Some(future) = self.0.take() {
+            Python::try_attach(|py| {
+                let _ = future.call_method0(py, "cancel");
+            });
+        }
+    }
+}
+
 impl AsyncImageDescriber for PythonAsyncDescriber {
     fn describe<'a>(
         &'a self,
@@ -220,7 +355,7 @@ impl AsyncImageDescriber for PythonAsyncDescriber {
         prompt: &'a str,
     ) -> anytomd::converter::AsyncDescribeFuture<'a> {
         Box::pin(async move {
-            let receiver = Python::attach(|py| {
+            let (pending, receiver) = Python::attach(|py| {
                 let coroutine = self
                     .callable
                     .call1(py, (PyBytes::new(py, image_bytes), mime_type, prompt))?;
@@ -236,14 +371,15 @@ impl AsyncImageDescriber for PythonAsyncDescriber {
                     },
                 )?;
                 future.call_method1("add_done_callback", (callback,))?;
-                Ok::<_, PyErr>(receiver)
+                Ok::<_, PyErr>((PendingCall(Some(future.unbind())), receiver))
             })
             .map_err(|error| anytomd::ConvertError::ImageDescriptionError {
                 reason: error.to_string(),
             })?;
 
-            receiver
-                .await
+            let outcome = receiver.await;
+            pending.settle();
+            outcome
                 .map_err(|_| anytomd::ConvertError::ImageDescriptionError {
                     reason: "description channel closed".to_string(),
                 })?
@@ -271,23 +407,36 @@ impl DoneCallback {
     }
 }
 
-fn describer_for(value: &Bound<'_, PyAny>) -> Arc<dyn ImageDescriber> {
+fn not_callable(value: &Bound<'_, PyAny>) -> PyErr {
+    PyTypeError::new_err(format!(
+        "image describer must be callable, got {}",
+        value.get_type()
+    ))
+}
+
+fn describer_for(value: &Bound<'_, PyAny>) -> PyResult<Arc<dyn ImageDescriber>> {
     match value.extract::<GeminiDescriber>() {
-        Ok(gemini) => gemini.inner,
-        Err(_) => Arc::new(PythonDescriber(value.clone().unbind())),
+        Ok(gemini) => Ok(gemini.inner),
+        Err(_) if value.is_callable() => Ok(Arc::new(PythonDescriber(value.clone().unbind()))),
+        Err(_) => Err(not_callable(value)),
     }
 }
 
-fn async_describer_for(value: &Bound<'_, PyAny>, loop_: PyObj) -> Arc<dyn AsyncImageDescriber> {
+fn async_describer_for(
+    py: Python<'_>,
+    value: &Bound<'_, PyAny>,
+) -> PyResult<Arc<dyn AsyncImageDescriber>> {
     match value.extract::<AsyncGeminiDescriber>() {
-        Ok(gemini) => gemini.inner,
-        Err(_) => Arc::new(PythonAsyncDescriber {
+        Ok(gemini) => Ok(gemini.inner),
+        Err(_) if value.is_callable() => Ok(Arc::new(PythonAsyncDescriber {
             callable: value.clone().unbind(),
-            loop_,
-        }),
+            loop_: running_loop(py)?,
+        })),
+        Err(_) => Err(not_callable(value)),
     }
 }
 
+/// Image describer backed by Google Gemini (blocking HTTP); key from `api_key` or `GEMINI_API_KEY`.
 #[pyclass(module = "anytomd._native", frozen, from_py_object)]
 #[derive(Clone)]
 struct GeminiDescriber {
@@ -313,15 +462,15 @@ impl GeminiDescriber {
         })
     }
 
+    /// Description of one image, computed with the GIL released.
     fn __call__(
         &self,
         py: Python<'_>,
-        image: &Bound<'_, PyBytes>,
+        image: PyBackedBytes,
         mime_type: &str,
         prompt: &str,
     ) -> PyResult<String> {
         let inner = self.inner.clone();
-        let image = image.as_bytes().to_vec();
         let mime_type = mime_type.to_string();
         let prompt = prompt.to_string();
         let outcome = py.detach(move || {
@@ -333,6 +482,7 @@ impl GeminiDescriber {
     }
 }
 
+/// Image describer backed by Google Gemini (async HTTP, concurrent per document); key from `api_key` or `GEMINI_API_KEY`.
 #[pyclass(module = "anytomd._native", frozen, from_py_object)]
 #[derive(Clone)]
 struct AsyncGeminiDescriber {
@@ -370,48 +520,46 @@ fn base_options(
     max_total_image_bytes: usize,
     max_uncompressed_zip_bytes: usize,
     image_describer: Option<&Bound<'_, PyAny>>,
-) -> ConversionOptions {
-    ConversionOptions {
+) -> PyResult<ConversionOptions> {
+    Ok(ConversionOptions {
         extract_images,
         extract_comments,
         strict,
         max_input_bytes,
         max_total_image_bytes,
         max_uncompressed_zip_bytes,
-        image_describer: image_describer.map(describer_for),
-    }
+        image_describer: image_describer.map(describer_for).transpose()?,
+    })
 }
 
 #[allow(clippy::too_many_arguments)]
 fn async_options(
+    py: Python<'_>,
     extract_images: bool,
     extract_comments: bool,
     strict: bool,
     max_input_bytes: usize,
     max_total_image_bytes: usize,
     max_uncompressed_zip_bytes: usize,
-    async_image_describer: Option<Bound<'_, PyAny>>,
-    loop_: Option<PyObj>,
-) -> AsyncConversionOptions {
-    AsyncConversionOptions {
+    async_image_describer: Option<&Py<PyAny>>,
+) -> PyResult<AsyncConversionOptions> {
+    let describer = async_image_describer
+        .map(|value| async_describer_for(py, value.bind(py)))
+        .transpose()?;
+    // The crate only collects image bytes for an async describer when extraction is on.
+    let collect = extract_images || describer.is_some();
+    Ok(AsyncConversionOptions {
         base: base_options(
-            extract_images,
+            collect,
             extract_comments,
             strict,
             max_input_bytes,
             max_total_image_bytes,
             max_uncompressed_zip_bytes,
             None,
-        ),
-        async_image_describer: async_image_describer.as_ref().map(|value| {
-            async_describer_for(value, loop_.expect("loop captured with async describer"))
-        }),
-    }
-}
-
-fn path_of<'py>(py: Python<'py>, path: &Bound<'py, PyAny>) -> PyResult<String> {
-    let resolved = py.import("os")?.call_method1("fspath", (path,))?;
-    Ok(resolved.extract::<Cow<'_, str>>()?.into_owned())
+        )?,
+        async_image_describer: describer,
+    })
 }
 
 fn running_loop(py: Python<'_>) -> PyResult<PyObj> {
@@ -426,7 +574,6 @@ fn runtime() -> &'static tokio::runtime::Runtime {
     static RUNTIME: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
     RUNTIME.get_or_init(|| {
         tokio::runtime::Builder::new_multi_thread()
-            .worker_threads(4)
             .thread_name("anytomd")
             .enable_all()
             .build()
@@ -434,8 +581,44 @@ fn runtime() -> &'static tokio::runtime::Runtime {
     })
 }
 
+/// Tokio task aborted when the awaiting Python coroutine is dropped or cancelled.
+struct TaskGuard<T>(JoinHandle<T>);
+
+impl<T> Future for TaskGuard<T> {
+    type Output = Result<T, JoinError>;
+
+    fn poll(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<Self::Output> {
+        Pin::new(&mut self.0).poll(context)
+    }
+}
+
+impl<T> Drop for TaskGuard<T> {
+    fn drop(&mut self) {
+        self.0.abort();
+    }
+}
+
+fn run_blocking(py: Python<'_>, work: impl FnOnce() -> Outcome + Send) -> PyResult<Outcome> {
+    py.detach(move || std::panic::catch_unwind(AssertUnwindSafe(work)))
+        .map_err(|payload| panicked(panic_reason(payload.as_ref())))
+}
+
+fn finish(
+    py: Python<'_>,
+    outcome: Outcome,
+    keep_images: bool,
+    path: Option<&Path>,
+) -> PyResult<ConversionResult> {
+    let mut result = outcome.map_err(|error| to_py_err(py, error, path))?;
+    if !keep_images {
+        result.images.clear();
+    }
+    ConversionResult::build(py, result)
+}
+
 // ##### CONVERSION #####
 
+/// Convert the document at `path` to Markdown; the format is detected from magic bytes and extension.
 #[pyfunction]
 #[allow(clippy::too_many_arguments)]
 #[pyo3(
@@ -447,7 +630,7 @@ fn runtime() -> &'static tokio::runtime::Runtime {
 )]
 fn convert_file(
     py: Python<'_>,
-    path: &Bound<'_, PyAny>,
+    path: PathBuf,
     extract_images: bool,
     extract_comments: bool,
     strict: bool,
@@ -456,8 +639,6 @@ fn convert_file(
     max_uncompressed_zip_bytes: usize,
     image_describer: Option<Bound<'_, PyAny>>,
 ) -> PyResult<ConversionResult> {
-    let path = path_of(py, path)?;
-    std::fs::metadata(&path).map_err(|error| PyOSError::new_err(format!("{path}: {error}")))?;
     let options = base_options(
         extract_images,
         extract_comments,
@@ -466,12 +647,12 @@ fn convert_file(
         max_total_image_bytes,
         max_uncompressed_zip_bytes,
         image_describer.as_ref(),
-    );
-    let outcome =
-        py.detach(move || rs_convert_file(Path::new(&path), &options).map(ConversionResult::from));
-    outcome.map_err(|error| to_py_err(py, error))
+    )?;
+    let outcome = run_blocking(py, || rs_convert_file(&path, &options))?;
+    finish(py, outcome, extract_images, Some(&path))
 }
 
+/// Convert in-memory `data` to Markdown; `format` is an extension such as `"docx"` or `".csv"`.
 #[pyfunction]
 #[allow(clippy::too_many_arguments)]
 #[pyo3(
@@ -483,7 +664,7 @@ fn convert_file(
 )]
 fn convert_bytes(
     py: Python<'_>,
-    data: &Bound<'_, PyBytes>,
+    data: PyBackedBytes,
     format: String,
     extract_images: bool,
     extract_comments: bool,
@@ -501,13 +682,12 @@ fn convert_bytes(
         max_total_image_bytes,
         max_uncompressed_zip_bytes,
         image_describer.as_ref(),
-    );
-    let bytes = data.as_bytes().to_vec();
-    let outcome =
-        py.detach(move || rs_convert_bytes(&bytes, &format, &options).map(ConversionResult::from));
-    outcome.map_err(|error| to_py_err(py, error))
+    )?;
+    let outcome = run_blocking(py, || rs_convert_bytes(&data, &format, &options))?;
+    finish(py, outcome, extract_images, None)
 }
 
+/// Awaitable `convert_file`: conversion runs off the event loop, image descriptions resolve concurrently.
 #[pyfunction]
 #[allow(clippy::too_many_arguments)]
 #[pyo3(
@@ -518,7 +698,7 @@ fn convert_bytes(
                  async_image_describer = None)
 )]
 async fn convert_file_async(
-    path: Py<PyAny>,
+    path: PathBuf,
     extract_images: bool,
     extract_comments: bool,
     strict: bool,
@@ -527,37 +707,27 @@ async fn convert_file_async(
     max_uncompressed_zip_bytes: usize,
     async_image_describer: Option<Py<PyAny>>,
 ) -> PyResult<ConversionResult> {
-    let (path, options) = Python::attach(|py| -> PyResult<(String, AsyncConversionOptions)> {
-        let path = path_of(py, path.bind(py))?;
-        std::fs::metadata(&path).map_err(|error| PyOSError::new_err(format!("{path}: {error}")))?;
-        let loop_ = async_image_describer
-            .as_ref()
-            .map(|_| running_loop(py))
-            .transpose()?;
-        let describer = async_image_describer
-            .as_ref()
-            .map(|describer| describer.bind(py).clone());
-        let options = async_options(
+    let options = Python::attach(|py| {
+        async_options(
+            py,
             extract_images,
             extract_comments,
             strict,
             max_input_bytes,
             max_total_image_bytes,
             max_uncompressed_zip_bytes,
-            describer,
-            loop_,
-        );
-        Ok((path, options))
+            async_image_describer.as_ref(),
+        )
     })?;
-    let handle =
-        runtime().spawn(async move { rs_convert_file_async(Path::new(&path), &options).await });
-    let outcome = handle
-        .await
-        .map_err(|error| PyRuntimeError::new_err(format!("conversion panicked: {error}")))?
-        .map(ConversionResult::from);
-    Python::attach(|py| outcome.map_err(|error| to_py_err(py, error)))
+    let target = path.clone();
+    let outcome =
+        TaskGuard(runtime().spawn(async move { rs_convert_file_async(&target, &options).await }))
+            .await
+            .map_err(join_reason)?;
+    Python::attach(|py| finish(py, outcome, extract_images, Some(&path)))
 }
 
+/// Awaitable `convert_bytes`: conversion runs off the event loop, image descriptions resolve concurrently.
 #[pyfunction]
 #[allow(clippy::too_many_arguments)]
 #[pyo3(
@@ -568,7 +738,7 @@ async fn convert_file_async(
                  async_image_describer = None)
 )]
 async fn convert_bytes_async(
-    data: Py<PyBytes>,
+    data: PyBackedBytes,
     format: String,
     extract_images: bool,
     extract_comments: bool,
@@ -578,48 +748,36 @@ async fn convert_bytes_async(
     max_uncompressed_zip_bytes: usize,
     async_image_describer: Option<Py<PyAny>>,
 ) -> PyResult<ConversionResult> {
-    let (bytes, options) = Python::attach(|py| -> PyResult<(Vec<u8>, AsyncConversionOptions)> {
-        let loop_ = async_image_describer
-            .as_ref()
-            .map(|_| running_loop(py))
-            .transpose()?;
-        let describer = async_image_describer
-            .as_ref()
-            .map(|describer| describer.bind(py).clone());
-        let options = async_options(
+    let options = Python::attach(|py| {
+        async_options(
+            py,
             extract_images,
             extract_comments,
             strict,
             max_input_bytes,
             max_total_image_bytes,
             max_uncompressed_zip_bytes,
-            describer,
-            loop_,
-        );
-        Ok((data.bind(py).as_bytes().to_vec(), options))
+            async_image_describer.as_ref(),
+        )
     })?;
-    let handle =
-        runtime().spawn(async move { rs_convert_bytes_async(&bytes, &format, &options).await });
-    let outcome = handle
-        .await
-        .map_err(|error| PyRuntimeError::new_err(format!("conversion panicked: {error}")))?
-        .map(ConversionResult::from);
-    Python::attach(|py| outcome.map_err(|error| to_py_err(py, error)))
+    let outcome = TaskGuard(
+        runtime().spawn(async move { rs_convert_bytes_async(&data, &format, &options).await }),
+    )
+    .await
+    .map_err(join_reason)?;
+    Python::attach(|py| finish(py, outcome, extract_images, None))
 }
 
+/// Format the engine would pick for `path` and its leading `data`, or None.
 #[pyfunction]
-fn detect_format(
-    py: Python<'_>,
-    path: &Bound<'_, PyAny>,
-    data: &Bound<'_, PyBytes>,
-) -> PyResult<Option<String>> {
-    let path = path_of(py, path)?;
-    Ok(rs_detect_format(Path::new(&path), data.as_bytes()).map(str::to_string))
+fn detect_format(path: PathBuf, data: PyBackedBytes) -> Option<String> {
+    rs_detect_format(&path, &data).map(str::to_string)
 }
 
+/// Concrete OOXML type behind ZIP magic: `"docx"`, `"pptx"`, `"xlsx"`, or None.
 #[pyfunction]
-fn detect_zip_format(data: &Bound<'_, PyBytes>) -> Option<String> {
-    rs_detect_zip_format(data.as_bytes()).map(str::to_string)
+fn detect_zip_format(data: PyBackedBytes) -> Option<String> {
+    rs_detect_zip_format(&data).map(str::to_string)
 }
 
 // ##### MODULE #####

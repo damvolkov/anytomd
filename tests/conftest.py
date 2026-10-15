@@ -4,14 +4,16 @@ import base64
 import io
 import json
 import os
-import re
 import urllib.error
 import urllib.request
 import zipfile
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Final
 
 import pytest
+
+RESOURCES: Final = Path(__file__).parent / "resources"
 
 REL_NS: Final = "http://schemas.openxmlformats.org/package/2006/relationships"
 CT_NS: Final = "http://schemas.openxmlformats.org/package/2006/content-types"
@@ -176,11 +178,17 @@ def llm():
 
 
 @pytest.fixture(scope="session")
-def path_of(resources):
+def resources() -> Path:
+    """Root of the fixture tree."""
+    return RESOURCES
+
+
+@pytest.fixture(scope="session")
+def path_of(resources: Path):
     """Resolver returning the Path of a uniquely named fixture by filename."""
 
-    def _resolve(filename: str):
-        found = list(resources.walk(re.compile(r"\A" + re.escape(filename) + r"\Z")))
+    def _resolve(filename: str) -> Path:
+        found = list(resources.rglob(filename))
         assert len(found) == 1, f"{filename!r} is not unique in the resource tree"
         return found[0]
 

@@ -109,7 +109,7 @@ def test_many_async_conversions_share_the_loop(gallery_docx):
 def test_fuzz_never_crashes_the_engine(payload, format):
     try:
         result = anytomd.convert_bytes(payload, format)
-    except anytomd.ConvertError, OSError:
+    except (anytomd.ConvertError, OSError):
         return
     assert isinstance(result.markdown, str)
     assert isinstance(result.plain_text, str)

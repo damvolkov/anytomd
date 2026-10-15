@@ -224,3 +224,17 @@ __marimo__/
 
 # Virtualenv
 .venv
+
+# Rust coverage
+coverage.lcov
+
+# qwen-code-cli (ai-fix workflow)
+.qwen/
+qwen-artifacts/
+.ai-context/
+
+# GitHub App credentials
+gha-creds-*.json
+health.md
+upstream-context/
+*.profraw

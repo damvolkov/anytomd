@@ -18,7 +18,7 @@ REAL_FILES = [
 
 @pytest.fixture(scope="module")
 def real_available(resources):
-    if not list(resources.walk("real_paragraphs.docx")):
+    if not (resources / "real" / "real_paragraphs.docx").exists():
         pytest.skip("real samples not downloaded — run `make samples-real`")
     return True
 

@@ -57,12 +57,15 @@ def test_result_repr_shows_summary(docx_result):
     assert "images=1" in text
 
 
+def test_result_repr_counts_characters():
+    assert "markdown=5 chars" in repr(anytomd.convert_bytes("héllo".encode(), "txt"))
+
+
 def test_result_is_frozen(docx_result):
     with pytest.raises(AttributeError):
         docx_result.markdown = "overwrite"
 
 
-def test_images_are_fresh_copies(docx_result):
-    first = docx_result.images[0][1]
-    second = docx_result.images[0][1]
-    assert first == second
+def test_result_fields_are_built_once(docx_result):
+    assert docx_result.markdown is docx_result.markdown
+    assert docx_result.images[0][1] is docx_result.images[0][1]

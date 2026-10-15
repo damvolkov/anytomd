@@ -1,0 +1,64 @@
+name: sync
+
+# On Renovate branches: package version follows the engine version, third-party licenses follow Cargo.lock.
+# Deterministic; pushes with the App token so CI re-runs on the synced head.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  version:
+    name: versions and licenses
+    if: >
+      startsWith(github.head_ref, 'renovate/') &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510  # v3.3.0
+        id: app
+        with:
+          client-id: ${{ vars.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          permission-contents: write
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ github.head_ref }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4  # v10.1.0
+      - uses: taiki-e/install-action@1168f6810a3cb30a3514bf5756a3b7f0422c6df8  # v2.87.28
+        with:
+          tool: cargo-about
+      - name: Align Cargo workspace and pyproject with the pinned engine
+        id: align
+        run: |
+          ENGINE=$(python3 -c 'import tomllib; print(next(p["version"] for p in tomllib.load(open("Cargo.lock", "rb"))["package"] if p["name"] == "anytomd"))')
+          PACKAGE=$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')
+          if [ "${PACKAGE%%.post*}" != "$ENGINE" ]; then
+            sed -i "0,/^version = \"[^\"]*\"/s//version = \"$ENGINE\"/" Cargo.toml pyproject.toml
+            cargo update --workspace
+            uv lock
+          fi
+          cargo about generate about.hbs | tr -d "\r" > THIRD_PARTY_LICENSES.md
+          echo "engine=$ENGINE" >> "$GITHUB_OUTPUT"
+          git diff --quiet && echo "changed=false" >> "$GITHUB_OUTPUT" || echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Commit and push
+        if: steps.align.outputs.changed == 'true'
+        env:
+          TOKEN: ${{ steps.app.outputs.token }}
+          SLUG: ${{ steps.app.outputs.app-slug }}
+          BRANCH: ${{ github.head_ref }}
+          ENGINE: ${{ steps.align.outputs.engine }}
+        run: |
+          git config user.name "$SLUG[bot]"
+          git config user.email "$SLUG[bot]@users.noreply.github.com"
+          git commit -am "chore(sync): versions and licenses for anytomd-rs $ENGINE"
+          git push "https://x-access-token:$TOKEN@github.com/${GITHUB_REPOSITORY}.git" "HEAD:$BRANCH"
