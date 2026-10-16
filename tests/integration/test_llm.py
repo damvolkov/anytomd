@@ -1,15 +1,13 @@
-"""Integration: real image description through the configured OpenAI-compatible provider.
+"""Integration: a real OpenAI-compatible vision model behind the fallback and describe.
 
-The provider defaults to an Alibaba token-plan endpoint (Anthropic-compatible
-messages API) and honours ANYTOMD_LLM_BASE_URL / ANYTOMD_LLM_API_KEY / ANYTOMD_LLM_MODEL
-for any other OpenAI-compatible gateway. Skipped without a key.
+Configured through ANYTOMD_VISION_MODEL / ANYTOMD_VISION_BASE_URL / ANYTOMD_VISION_API_KEY; skipped without a model.
 """
 
-import asyncio
+from dataclasses import replace
 
 import pytest
 
-import anytomd
+import anytomd as ad
 
 pytestmark = [pytest.mark.integration, pytest.mark.timeout(180)]
 
@@ -18,38 +16,33 @@ def _alts(markdown: str) -> list[str]:
     return [line.split("![", 1)[1].split("](", 1)[0] for line in markdown.splitlines() if "![" in line]
 
 
-def test_sync_describer_uses_provider(llm, gallery_docx):
-    result = anytomd.convert_bytes(gallery_docx, "docx", extract_images=True, image_describer=llm.describe)
-    alts = _alts(result.markdown)
-    assert result.warnings == []
-    assert len(alts) == 3
-    assert all(alt not in ("image1.png", "image2.png", "image3.png") for alt in alts)
+async def test_llm_convert_image_falls_back_to_description(path_of, vision_spec) -> None:
+    document = ad.convert(path_of("shot.png"), vision=vision_spec)
+    assert document.markdown.startswith("Image description: ")
+    assert len(document.markdown) > len("Image description: ") + 3
 
 
-def test_async_describer_uses_provider(llm, gallery_docx):
-    ### Provider burst limits answer 429 to simultaneous calls; concurrency itself is covered by the unit suite.
-    gate = asyncio.Semaphore(1)
-
-    async def describer(image: bytes, mime_type: str, prompt: str) -> str:
-        async with gate:
-            return await asyncio.to_thread(llm.describe, image, mime_type, prompt)
-
-    result = asyncio.run(
-        anytomd.convert_bytes_async(gallery_docx, "docx", extract_images=True, async_image_describer=describer)
-    )
-    alts = _alts(result.markdown)
-    assert result.warnings == []
-    assert len(alts) == 3
-    assert all(alt not in ("image1.png", "image2.png", "image3.png") for alt in alts)
+async def test_llm_convert_text_image_stays_ocr(path_of, vision_spec) -> None:
+    assert ad.convert(path_of("real_photo.png"), vision=vision_spec).markdown == "This is just\nan example."
 
 
-def test_gemini_describer_call_reports_provider_rejection():
-    describer = anytomd.GeminiDescriber("invalid-key")
-    with pytest.raises(anytomd.ImageDescriptionError, match="Gemini"):
-        describer(b"\x89PNG\r\n\x1a\n", "image/png", "Describe this image.")
+async def test_llm_convert_embedded_images(gallery_docx, vision_spec) -> None:
+    document = ad.convert(gallery_docx, format="docx", vision=vision_spec)
+    assert document.warnings == ()
+    assert all(alt.startswith("Image description: ") for alt in _alts(document.markdown))
 
 
-def test_descriptions_carry_visual_content(llm, single_image_docx):
-    result = anytomd.convert_bytes(single_image_docx, "docx", extract_images=True, image_describer=llm.describe)
-    lowered = result.markdown.lower()
-    assert any(word in lowered for word in ("red", "square", "color", "solid", "image", "green", "blue"))
+async def test_llm_aconvert_embedded_images_bounded(gallery_docx, vision_spec) -> None:
+    document = await ad.aconvert(gallery_docx, format="docx", vision=replace(vision_spec, concurrency=1))
+    assert document.warnings == ()
+    assert len(_alts(document.markdown)) == 3
+
+
+async def test_llm_describe_text_image_is_a_description(path_of, vision_spec) -> None:
+    document = ad.describe(path_of("real_photo.png"), vision=vision_spec)
+    assert document.markdown.startswith("Image description: ")
+    assert document.markdown != "Image description: This is just an example."
+
+
+async def test_llm_adescribe(path_of, vision_spec) -> None:
+    assert (await ad.adescribe(path_of("shot.png"), vision=vision_spec)).markdown.startswith("Image description: ")

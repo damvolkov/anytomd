@@ -4,7 +4,7 @@ The binding keeps itself aligned with its dependencies. Deterministic bots detec
 
 ```mermaid
 flowchart LR
-  R[Renovate] -->|PR renovate/*| S[sync.yml: versions + licenses]
+  R[Renovate] -->|PR renovate/*| S[sync.yml: changelog + licenses]
   S -->|push| C[CI: tests · coverage · API diff]
   C -->|red, or engine API grew| A[ai-fix.yml: Qwen agent]
   A -->|commit [ai-fix]| C
@@ -21,11 +21,10 @@ Every file the system may change, who changes it and with which tool. Anything n
 |---|---|---|---|---|
 | **Dependency pins** | `Cargo.toml` (`anytomd`, `pyo3`, `tokio`), `pyproject.toml` dependency groups, `.github/workflows/*` action digests | Renovate | Renovate | A new release upstream |
 | **Lockfiles** | `Cargo.lock`, `uv.lock` | Renovate, `sync.yml` | cargo, uv | With every pin change |
-| **Package version** | `[workspace.package] version` in `Cargo.toml`, `[project] version` in `pyproject.toml` | `sync.yml` | sed, cargo, uv | The engine version changes |
 | **Changelog: engine line** | `CHANGELOG.md` → `## [Unreleased]` | `sync.yml` | awk | The engine version changes |
 | **Third-party licenses** | `THIRD_PARTY_LICENSES.md` | `sync.yml` | cargo-about | Any Rust dependency changes |
-| **Binding code** | `crates/native/src/lib.rs` | `ai-fix.yml` agent | Qwen Code, cargo, maturin | CI red, or engine API grew |
-| **Python surface** | `src/anytomd/__init__.py`, `src/anytomd/_native.pyi` | `ai-fix.yml` agent | Qwen Code | Something new is exposed |
+| **Binding code** | `crates/native/src/lib.rs`, `src/anytomd/` (infra, logic, backends) | `ai-fix.yml` agent | Qwen Code, cargo, maturin | CI red, or engine API grew |
+| **Python surface** | `src/anytomd/logic/api.py`, `src/anytomd/__init__.py`, `src/anytomd/_native.pyi` | `ai-fix.yml` agent | Qwen Code | Something new is exposed |
 | **Tests** | `tests/` | `ai-fix.yml` agent | Qwen Code, pytest | Every change the agent makes |
 | **Docs** | `docs/` (MkDocs), `README.md` | `ai-fix.yml` agent | Qwen Code, mkdocs | Something new is exposed |
 | **Changelog: binding lines** | `CHANGELOG.md` → `## [Unreleased]` | `ai-fix.yml` agent | Qwen Code | Every user-visible change |
@@ -34,14 +33,14 @@ Every file the system may change, who changes it and with which tool. Anything n
 
 The agent's limits are enforced by the workflow, not by trust: its commit keeps only `crates/native/src/`, `src/anytomd/`, `tests/`, `docs/`, `CHANGELOG.md` and `README.md`, and the App token cannot write `.github/`.
 
-**Human-only:** merging, release tags (`v*`), the release date in `CHANGELOG.md`, `.github/`, `QWEN.md`, `prek.toml`, build and tooling config.
+**Human-only:** merging, the package version, release tags (`v*`), the release date in `CHANGELOG.md`, `.github/`, `QWEN.md`, `prek.toml`, build and tooling config.
 
 ## Moving parts
 
 | Piece | Kind | Does |
 |---|---|---|
 | `.github/renovate.json` | Deterministic | Opens PRs for new versions: anytomd-rs at once, PyO3 and tokio separately, Python tooling and Actions grouped. Its *Dependency Dashboard* issue also marks packages without a release for a year as abandoned. |
-| `sync.yml` | Deterministic | On `renovate/*`: sets the package version to the new engine version, adds the engine line to the changelog, regenerates `THIRD_PARTY_LICENSES.md`. |
+| `sync.yml` | Deterministic | On `renovate/*`: adds the engine line to the changelog, regenerates `THIRD_PARTY_LICENSES.md`. |
 | `ci.yml` | Deterministic | prek hooks (the same as every local commit: ruff, ty, tach, rustfmt, clippy, licenses freshness, zizmor, gitleaks), tests on Linux/macOS/Windows × Python 3.12/3.14, Rust coverage (≥ 90 % of lines), docs. On `renovate/*` also the **upstream context**: public API diff of the two engine versions (`cargo public-api`) and their release notes. Logs are kept as artifacts for the agent. |
 | `ai-fix.yml` | Agent | After CI on `renovate/*`: **fix** mode when CI is red, **expose** mode when CI is green but the engine's public API gained items. Runs Qwen Code under `QWEN.md`. |
 | `health.yml` | Deterministic | First day of each month: checks every direct dependency for an archived repository, a vanished package, a last release older than 18 months, or no push in 12 months. Opens or refreshes one `deps-health` issue; closes it when all is well. |
@@ -58,7 +57,7 @@ The agent's limits are enforced by the workflow, not by trust: its commit keeps 
 
 ## Versioning
 
-The package version is the engine version it embeds: anytomd-rs `1.3.1` ships as `anytomd 1.3.1`. Binding-only releases over the same engine add a post-release segment: `1.3.1.post1`, `1.3.1.post2`. `sync.yml` resets the version when the engine moves; `anytomd.__version__` always reports the engine.
+The package has its own semver (`anytomd.__version__`); the engine it embeds is `anytomd.ENGINE_VERSION`. An engine bump never changes the package version by itself: `sync.yml` records it in the changelog, and a human picks the next version when releasing.
 
 ## Setup
 

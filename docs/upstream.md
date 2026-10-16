@@ -2,29 +2,29 @@
 
 ## anytomd-rs
 
-[anytomd-rs](https://github.com/developer0hye/anytomd-rs) is a pure-Rust library, CLI and WebAssembly package by [developer0hye](https://github.com/developer0hye) that converts documents into Markdown for LLM consumption — a native alternative to Microsoft's [MarkItDown](https://github.com/microsoft/markitdown) with no Python runtime, C bindings or subprocesses.
+[anytomd-rs](https://github.com/developer0hye/anytomd-rs) is a pure-Rust library, CLI and WebAssembly package by [developer0hye](https://github.com/developer0hye) that converts documents into Markdown for LLMs — no Python runtime, no C bindings, no subprocesses.
 
-This package compiles that crate into a Python extension module with [PyO3](https://pyo3.rs) and [maturin](https://www.maturin.rs). It contributes only the Python surface:
+This package compiles it into a Python extension with [PyO3](https://pyo3.rs) and [maturin](https://www.maturin.rs), and adds:
 
-| Belongs to anytomd-rs | Belongs to this binding |
+| From anytomd-rs | Added here |
 |---|---|
-| Every converter and the Markdown it produces | Python signatures, stubs and docstrings |
-| Format detection | Mapping Rust errors to the Python exception tree |
-| Limits, warnings, strict mode | GIL release, the asyncio bridge, cancellation |
-| Gemini describers | Accepting Python callables as describers |
-| Performance and [benchmarks](https://github.com/developer0hye/anytomd-rs) | Wheels for Python platforms |
+| Every converter and the Markdown it produces | The Python API: `convert`, `detect`, `describe` and their async twins |
+| Format detection | Errors, warnings and `Document` as Python types |
+| Limits, warnings, strict mode | GIL release, asyncio, cancellation |
+| Performance and [benchmarks](https://github.com/developer0hye/anytomd-rs) | The extras: PDF and OCR (liteparse), vision (OpenAI-compatible) |
 
-Report wrong or missing Markdown [upstream](https://github.com/developer0hye/anytomd-rs/issues); report anything about the Python API [here](https://github.com/damvolkov/anytomd/issues).
+Wrong Markdown from a supported format → [anytomd-rs issues](https://github.com/developer0hye/anytomd-rs/issues). Anything else → [ours](https://github.com/damvolkov/anytomd/issues).
 
-## Which engine am I running?
+## Versions
 
 ```python
-import anytomd
+import anytomd as ad
 
-anytomd.__version__   # e.g. '1.3.1' — the anytomd-rs release compiled into this build
+ad.__version__      # '1.4.0' — this package, its own semver
+ad.ENGINE_VERSION   # '1.3.1' — the anytomd-rs release compiled in
 ```
 
-The binding pins an exact crate version. The package version is the engine version it embeds — anytomd-rs `1.3.1` ships as `anytomd 1.3.1` — and binding-only fixes over the same engine add a post-release: `1.3.1.post1`. New engine releases are picked up automatically → [Self-maintenance](maintenance.md).
+The engine is pinned to an exact release. Every new release is picked up automatically and recorded in the [changelog](changelog.md) → [Self-maintenance](maintenance.md).
 
 ## Other ways to use anytomd
 
@@ -37,4 +37,4 @@ The binding pins an exact crate version. The package version is the engine versi
 
 ## Licenses
 
-The binding is Apache-2.0, the same license as anytomd-rs. Its wheels statically link anytomd-rs and about two hundred crates under permissive licenses (Apache-2.0, MIT, ISC, Unicode-3.0, BSD-3-Clause, Zlib, CDLA-Permissive-2.0) and MPL-2.0; every license text is listed in [`THIRD_PARTY_LICENSES.md`](https://github.com/damvolkov/anytomd/blob/main/THIRD_PARTY_LICENSES.md), which ships inside each wheel and the sdist. It is regenerated with `make licenses`.
+Apache-2.0, like anytomd-rs. Wheels statically link the engine and its dependencies, under permissive licenses and MPL-2.0. All license texts are in [`THIRD_PARTY_LICENSES.md`](https://github.com/damvolkov/anytomd/blob/main/THIRD_PARTY_LICENSES.md), shipped inside every wheel and regenerated with `make licenses`.

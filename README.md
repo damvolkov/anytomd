@@ -14,25 +14,25 @@ into clean Markdown for LLMs. No Python dependencies, GIL released, native async
 
 ```bash
 pip install anytomd            # or: uv add anytomd
-pip install "anytomd[full]"    # + local OCR, OpenAI-compatible vision, PDF
+pip install "anytomd[full]"    # + PDF, text in images (OCR), image descriptions (vision LLM)
 ```
 
 ```python
-from anytomd import convert_file
+import anytomd as ad
 
-result = convert_file("report.docx")
-print(result.markdown)     # headings, tables, lists, links, images
-print(result.title)        # 'Quarterly Report'
+document = ad.convert("report.docx")
+document.markdown              # headings, tables, lists, links, images
+
+await ad.aconvert("scan.pdf")  # every call has its async twin
+ad.detect("export.dat")        # 'xlsx'
+ad.describe("cat.png")         # 'Image description: A tabby cat asleep on a chair.'
 ```
 
 | | |
 |---|---|
-| [Quickstart](https://damvolkov.github.io/anytomd/quickstart/) | The five calls you will actually use |
-| [Formats](https://damvolkov.github.io/anytomd/guide/formats/) | What converts, how the format is chosen, PDF |
-| [Image descriptions](https://damvolkov.github.io/anytomd/guide/images/) | LLM and OCR alt text: callables, Gemini, `ImageDescriber` |
-| [Async](https://damvolkov.github.io/anytomd/guide/async/) | `await convert_file_async(...)`, concurrency, cancellation |
-| [Errors and warnings](https://damvolkov.github.io/anytomd/guide/errors/) | Best-effort conversion, strict mode, limits |
-| [Reference](https://damvolkov.github.io/anytomd/reference/conversion/) | Every function, option, class and exception |
+| [Formats](https://damvolkov.github.io/anytomd/formats/) | What converts, with and without each extra |
+| [API](https://damvolkov.github.io/anytomd/api/) | `convert`, `detect`, `describe`, their async twins, `Document`, `VisionSpec` |
+| [Errors](https://damvolkov.github.io/anytomd/errors/) | What can fail, and how to catch it |
 | [Self-maintenance](https://damvolkov.github.io/anytomd/maintenance/) | How the binding follows anytomd-rs on its own |
 
 Conversion quality, format coverage and performance belong to

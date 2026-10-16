@@ -1,7 +1,6 @@
-#  ┌──────────────────────────────────────────────────────────────────────────┐
-#  │  tach · architectural import contracts (Rust-backed)                       │
-#  │  bootstrap: `tach mod` → `tach sync` · CI: `tach check` (make arch)         │
-#  └──────────────────────────────────────────────────────────────────────────┘
+#  tach · architectural import contracts (Rust-backed) · CI: `tach check` (make arch)
+#  Layers: infra (contracts) ← backends (engines) ← logic (use cases) ← anytomd (public surface).
+#  Optional backends are loaded by name in backends.registry, outside the static graph.
 
 source_roots = ["src"]
 
@@ -18,28 +17,80 @@ unused_ignore_directives = "error"
 
 [[modules]]
 path = "anytomd"
-depends_on = ["anytomd._native", "anytomd.converters", "anytomd.describers", "anytomd.documents", "anytomd.errors"]
-
-[[modules]]
-path = "anytomd._capabilities"
-depends_on = []
+depends_on = ["anytomd._native", "anytomd.infra.documents", "anytomd.infra.errors", "anytomd.infra.specs", "anytomd.infra.warnings", "anytomd.logic.api"]
 
 [[modules]]
 path = "anytomd._native"
 depends_on = []
 
 [[modules]]
-path = "anytomd.describers"
-depends_on = ["anytomd._capabilities"]
-
-[[modules]]
-path = "anytomd.converters"
-depends_on = ["anytomd._capabilities", "anytomd.documents", "anytomd.errors"]
-
-[[modules]]
-path = "anytomd.documents"
+path = "anytomd.infra.errors"
 depends_on = []
 
 [[modules]]
-path = "anytomd.errors"
-depends_on = ["anytomd._native"]
+path = "anytomd.infra.warnings"
+depends_on = []
+
+[[modules]]
+path = "anytomd.infra.documents"
+depends_on = ["anytomd.infra.warnings"]
+
+[[modules]]
+path = "anytomd.infra.specs"
+depends_on = []
+
+[[modules]]
+path = "anytomd.infra.formats"
+depends_on = []
+
+[[modules]]
+path = "anytomd.infra.routes"
+depends_on = []
+
+[[modules]]
+path = "anytomd.config.vision"
+depends_on = ["anytomd.infra.specs"]
+
+[[modules]]
+path = "anytomd.backends.base"
+depends_on = ["anytomd.infra.documents"]
+
+[[modules]]
+path = "anytomd.backends.native"
+depends_on = ["anytomd._native", "anytomd.infra.documents", "anytomd.infra.specs", "anytomd.infra.warnings"]
+
+[[modules]]
+path = "anytomd.backends.liteparse"
+depends_on = ["anytomd.infra.documents", "anytomd.infra.errors", "anytomd.infra.warnings"]
+
+[[modules]]
+path = "anytomd.backends.openai"
+depends_on = ["anytomd.infra.errors", "anytomd.infra.specs"]
+
+[[modules]]
+path = "anytomd.backends.registry"
+depends_on = ["anytomd.backends.base", "anytomd.infra.errors", "anytomd.infra.specs"]
+
+[[modules]]
+path = "anytomd.logic.sources"
+depends_on = ["anytomd.backends.native", "anytomd.infra.errors"]
+
+[[modules]]
+path = "anytomd.logic.fallback"
+depends_on = ["anytomd.backends.base", "anytomd.infra.errors", "anytomd.infra.formats", "anytomd.infra.warnings"]
+
+[[modules]]
+path = "anytomd.logic.conversion"
+depends_on = ["anytomd.backends.base", "anytomd.backends.native", "anytomd.backends.registry", "anytomd.infra.documents", "anytomd.infra.errors", "anytomd.infra.formats", "anytomd.infra.routes", "anytomd.infra.specs", "anytomd.logic.fallback", "anytomd.logic.sources"]
+
+[[modules]]
+path = "anytomd.logic.detection"
+depends_on = ["anytomd.backends.native", "anytomd.logic.sources"]
+
+[[modules]]
+path = "anytomd.logic.description"
+depends_on = ["anytomd.backends.registry", "anytomd.infra.documents", "anytomd.infra.errors", "anytomd.infra.formats", "anytomd.infra.specs", "anytomd.logic.sources"]
+
+[[modules]]
+path = "anytomd.logic.api"
+depends_on = ["anytomd.infra.documents", "anytomd.infra.specs", "anytomd.logic.conversion", "anytomd.logic.description", "anytomd.logic.detection", "anytomd.logic.sources"]

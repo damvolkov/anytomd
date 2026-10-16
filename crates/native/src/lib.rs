@@ -23,9 +23,6 @@ use anytomd::convert_file as rs_convert_file;
 use anytomd::convert_file_async as rs_convert_file_async;
 use anytomd::detection::detect_format as rs_detect_format;
 use anytomd::detection::detect_zip_format as rs_detect_zip_format;
-use anytomd::gemini::AsyncGeminiDescriber as RsAsyncGemini;
-use anytomd::gemini::GeminiDescriber as RsGemini;
-use pyo3::exceptions::PyException;
 use pyo3::exceptions::PyOSError;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::exceptions::PyTypeError;
@@ -46,86 +43,28 @@ const DEFAULT_MAX_UNCOMPRESSED_ZIP_BYTES: usize = 16 * 1024 * 1024 * 1024;
 
 // ##### EXCEPTIONS #####
 
-pyo3::create_exception!(
-    anytomd._native,
-    ConvertError,
-    PyException,
-    "Base of every conversion failure."
-);
-pyo3::create_exception!(
-    anytomd._native,
-    UnsupportedFormatError,
-    ConvertError,
-    "No converter recognizes the format."
-);
-pyo3::create_exception!(
-    anytomd._native,
-    FormatNotSupportedError,
-    ConvertError,
-    "Format recognized but intentionally refused (PDF)."
-);
-pyo3::create_exception!(
-    anytomd._native,
-    InputTooLargeError,
-    ConvertError,
-    "Input or decompressed archive exceeds its limit; carries `size` and `limit`."
-);
-pyo3::create_exception!(
-    anytomd._native,
-    MalformedDocumentError,
-    ConvertError,
-    "Document structure broken beyond recovery, or a warning under `strict=True`."
-);
-pyo3::create_exception!(
-    anytomd._native,
-    ImageDescriptionError,
-    ConvertError,
-    "An image describer could not be built or failed."
-);
-pyo3::create_exception!(
-    anytomd._native,
-    ZipError,
-    ConvertError,
-    "ZIP container (DOCX, PPTX, XLSX) unreadable."
-);
-pyo3::create_exception!(
-    anytomd._native,
-    XmlError,
-    ConvertError,
-    "XML inside the document unparseable."
-);
-pyo3::create_exception!(
-    anytomd._native,
-    SpreadsheetError,
-    ConvertError,
-    "Workbook (XLSX, XLS) unreadable."
-);
-pyo3::create_exception!(
-    anytomd._native,
-    Utf8Error,
-    ConvertError,
-    "Content is not valid UTF-8."
-);
+// The exception tree is Python (`anytomd.infra.errors`); the engine only raises into it.
+pyo3::import_exception!(anytomd.infra.errors, UnknownFormatError);
+pyo3::import_exception!(anytomd.infra.errors, InputTooLargeError);
+pyo3::import_exception!(anytomd.infra.errors, MalformedDocumentError);
 
 fn to_py_err(py: Python<'_>, error: anytomd::ConvertError, path: Option<&Path>) -> PyErr {
     use anytomd::ConvertError as E;
     let message = error.to_string();
     match error {
-        E::UnsupportedFormat { .. } => UnsupportedFormatError::new_err(message),
-        E::FormatNotSupported { .. } => FormatNotSupportedError::new_err(message),
-        E::InputTooLarge { size, limit } => {
-            let error = InputTooLargeError::new_err(message);
-            let value = error.value(py);
-            let _ = value.setattr("size", size);
-            let _ = value.setattr("limit", limit);
-            PyErr::from_value(value.clone().into_any())
+        E::UnsupportedFormat { .. } | E::FormatNotSupported { .. } => {
+            UnknownFormatError::new_err(message)
         }
-        E::MalformedDocument { .. } => MalformedDocumentError::new_err(message),
-        E::ImageDescriptionError { .. } => ImageDescriptionError::new_err(message),
-        E::ZipError(source) => ZipError::new_err(format!("{message}: {source}")),
-        E::XmlError(source) => XmlError::new_err(format!("{message}: {source}")),
-        E::SpreadsheetError(source) => SpreadsheetError::new_err(format!("{message}: {source}")),
-        E::Utf8Error(source) => Utf8Error::new_err(format!("{message}: {source}")),
+        E::InputTooLarge { size, limit } => InputTooLargeError::new_err((message, size, limit)),
+        E::MalformedDocument { .. } | E::ImageDescriptionError { .. } => {
+            MalformedDocumentError::new_err(message)
+        }
+        E::ZipError(source) => MalformedDocumentError::new_err(format!("{message}: {source}")),
+        E::XmlError(source) => MalformedDocumentError::new_err(format!("{message}: {source}")),
+        E::SpreadsheetError(source) => {
+            MalformedDocumentError::new_err(format!("{message}: {source}"))
+        }
+        E::Utf8Error(source) => MalformedDocumentError::new_err(format!("{message}: {source}")),
         E::Io(source) => os_error(py, source, path),
     }
 }
@@ -415,10 +354,9 @@ fn not_callable(value: &Bound<'_, PyAny>) -> PyErr {
 }
 
 fn describer_for(value: &Bound<'_, PyAny>) -> PyResult<Arc<dyn ImageDescriber>> {
-    match value.extract::<GeminiDescriber>() {
-        Ok(gemini) => Ok(gemini.inner),
-        Err(_) if value.is_callable() => Ok(Arc::new(PythonDescriber(value.clone().unbind()))),
-        Err(_) => Err(not_callable(value)),
+    match value.is_callable() {
+        true => Ok(Arc::new(PythonDescriber(value.clone().unbind()))),
+        false => Err(not_callable(value)),
     }
 }
 
@@ -426,86 +364,12 @@ fn async_describer_for(
     py: Python<'_>,
     value: &Bound<'_, PyAny>,
 ) -> PyResult<Arc<dyn AsyncImageDescriber>> {
-    match value.extract::<AsyncGeminiDescriber>() {
-        Ok(gemini) => Ok(gemini.inner),
-        Err(_) if value.is_callable() => Ok(Arc::new(PythonAsyncDescriber {
+    match value.is_callable() {
+        true => Ok(Arc::new(PythonAsyncDescriber {
             callable: value.clone().unbind(),
             loop_: running_loop(py)?,
         })),
-        Err(_) => Err(not_callable(value)),
-    }
-}
-
-/// Image describer backed by Google Gemini (blocking HTTP); key from `api_key` or `GEMINI_API_KEY`.
-#[pyclass(module = "anytomd._native", frozen, from_py_object)]
-#[derive(Clone)]
-struct GeminiDescriber {
-    inner: Arc<dyn ImageDescriber>,
-}
-
-#[pymethods]
-impl GeminiDescriber {
-    #[new]
-    #[pyo3(signature = (api_key = None, model = None))]
-    fn new(api_key: Option<String>, model: Option<String>) -> PyResult<Self> {
-        let describer = match api_key {
-            Some(key) => RsGemini::new(key),
-            None => RsGemini::from_env()
-                .map_err(|error| ImageDescriptionError::new_err(error.to_string()))?,
-        };
-        let describer = match model {
-            Some(name) => describer.with_model(name),
-            None => describer,
-        };
-        Ok(Self {
-            inner: Arc::new(describer),
-        })
-    }
-
-    /// Description of one image, computed with the GIL released.
-    fn __call__(
-        &self,
-        py: Python<'_>,
-        image: PyBackedBytes,
-        mime_type: &str,
-        prompt: &str,
-    ) -> PyResult<String> {
-        let inner = self.inner.clone();
-        let mime_type = mime_type.to_string();
-        let prompt = prompt.to_string();
-        let outcome = py.detach(move || {
-            inner
-                .describe(&image, &mime_type, &prompt)
-                .map_err(|error| error.to_string())
-        });
-        outcome.map_err(ImageDescriptionError::new_err)
-    }
-}
-
-/// Image describer backed by Google Gemini (async HTTP, concurrent per document); key from `api_key` or `GEMINI_API_KEY`.
-#[pyclass(module = "anytomd._native", frozen, from_py_object)]
-#[derive(Clone)]
-struct AsyncGeminiDescriber {
-    inner: Arc<dyn AsyncImageDescriber>,
-}
-
-#[pymethods]
-impl AsyncGeminiDescriber {
-    #[new]
-    #[pyo3(signature = (api_key = None, model = None))]
-    fn new(api_key: Option<String>, model: Option<String>) -> PyResult<Self> {
-        let describer = match api_key {
-            Some(key) => RsAsyncGemini::new(key),
-            None => RsAsyncGemini::from_env()
-                .map_err(|error| ImageDescriptionError::new_err(error.to_string()))?,
-        };
-        let describer = match model {
-            Some(name) => describer.with_model(name),
-            None => describer,
-        };
-        Ok(Self {
-            inner: Arc::new(describer),
-        })
+        false => Err(not_callable(value)),
     }
 }
 
@@ -784,7 +648,6 @@ fn detect_zip_format(data: PyBackedBytes) -> Option<String> {
 
 #[pymodule]
 fn _native(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    let py = m.py();
     m.add_function(wrap_pyfunction!(convert_file, m)?)?;
     m.add_function(wrap_pyfunction!(convert_bytes, m)?)?;
     m.add_function(wrap_pyfunction!(convert_file_async, m)?)?;
@@ -793,34 +656,6 @@ fn _native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(detect_zip_format, m)?)?;
     m.add_class::<ConversionResult>()?;
     m.add_class::<ConversionWarning>()?;
-    m.add_class::<GeminiDescriber>()?;
-    m.add_class::<AsyncGeminiDescriber>()?;
-    for (name, class) in [
-        ("ConvertError", py.get_type::<ConvertError>()),
-        (
-            "UnsupportedFormatError",
-            py.get_type::<UnsupportedFormatError>(),
-        ),
-        (
-            "FormatNotSupportedError",
-            py.get_type::<FormatNotSupportedError>(),
-        ),
-        ("InputTooLargeError", py.get_type::<InputTooLargeError>()),
-        (
-            "MalformedDocumentError",
-            py.get_type::<MalformedDocumentError>(),
-        ),
-        (
-            "ImageDescriptionError",
-            py.get_type::<ImageDescriptionError>(),
-        ),
-        ("ZipError", py.get_type::<ZipError>()),
-        ("XmlError", py.get_type::<XmlError>()),
-        ("SpreadsheetError", py.get_type::<SpreadsheetError>()),
-        ("Utf8Error", py.get_type::<Utf8Error>()),
-    ] {
-        m.add(name, class)?;
-    }
-    m.add("__version__", env!("CARGO_PKG_VERSION"))?;
+    m.add("ENGINE_VERSION", env!("ANYTOMD_ENGINE_VERSION"))?;
     Ok(())
 }

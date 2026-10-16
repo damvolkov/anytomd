@@ -12,7 +12,7 @@ test:             ## unit suite with coverage gate
 stress:           ## concurrency and volume suite only
 	uv run pytest -m stress -q -p no:randomly --timeout=300
 
-integration:      ## real LLM provider integration suite
+integration:      ## real vision model suite (needs ANYTOMD_VISION_*)
 	uv run pytest -m integration -q --timeout=300
 
 suite:            ## everything, one 100% coverage gate

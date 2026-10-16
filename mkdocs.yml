@@ -62,24 +62,11 @@ plugins:
 
 nav:
   - Home: index.md
-  - Getting started:
-      - Installation: installation.md
-      - Quickstart: quickstart.md
-  - Guide:
-      - Formats: guide/formats.md
-      - Image descriptions: guide/images.md
-      - Async: guide/async.md
-      - Errors and warnings: guide/errors.md
-  - Reference:
-      - Conversion: reference/conversion.md
-      - Options: reference/options.md
-      - Results: reference/results.md
-      - Describers: reference/describers.md
-      - PDF: reference/pdf.md
-      - Detection: reference/detection.md
-      - Exceptions: reference/exceptions.md
+  - Formats: formats.md
+  - API: api.md
+  - Errors: errors.md
   - Project:
       - Upstream and versioning: upstream.md
-      - Development: development.md
       - Self-maintenance: maintenance.md
+      - Development: development.md
       - Changelog: changelog.md
