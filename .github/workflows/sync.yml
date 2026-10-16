@@ -1,7 +1,7 @@
 name: sync
 
-# On Renovate branches: package version follows the engine version, the changelog records the new engine,
-# third-party licenses follow Cargo.lock.
+# On Renovate branches: the changelog records the new engine and the third-party licenses follow Cargo.lock.
+# The package version is the binding's own semver; a human sets it when releasing.
 # Deterministic; pushes with the App token so CI re-runs on the synced head.
 
 on:
@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   version:
-    name: versions, changelog and licenses
+    name: changelog and licenses
     if: >
       startsWith(github.head_ref, 'renovate/') &&
       github.event.pull_request.head.repo.full_name == github.repository
@@ -33,20 +33,13 @@ jobs:
         with:
           ref: ${{ github.head_ref }}
           persist-credentials: false
-      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4  # v10.1.0
       - uses: taiki-e/install-action@1168f6810a3cb30a3514bf5756a3b7f0422c6df8  # v2.87.28
         with:
           tool: cargo-about
-      - name: Align Cargo workspace and pyproject with the pinned engine
+      - name: Record the engine in the changelog, refresh the licenses
         id: align
         run: |
           ENGINE=$(python3 -c 'import tomllib; print(next(p["version"] for p in tomllib.load(open("Cargo.lock", "rb"))["package"] if p["name"] == "anytomd"))')
-          PACKAGE=$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')
-          if [ "${PACKAGE%%.post*}" != "$ENGINE" ]; then
-            sed -i "0,/^version = \"[^\"]*\"/s//version = \"$ENGINE\"/" Cargo.toml pyproject.toml
-            cargo update --workspace
-            uv lock
-          fi
           grep -q "anytomd-rs $ENGINE" CHANGELOG.md || awk -v line="- Engine: anytomd-rs $ENGINE ([release notes](https://github.com/developer0hye/anytomd-rs/releases/tag/v$ENGINE))." '
             { print }
             /^## \[Unreleased\]/ && !done { print ""; print "### Changed"; print ""; print line; done = 1 }
@@ -65,5 +58,5 @@ jobs:
         run: |
           git config user.name "$SLUG[bot]"
           git config user.email "$SLUG[bot]@users.noreply.github.com"
-          git commit -am "chore(sync): versions, changelog and licenses for anytomd-rs $ENGINE"
+          git commit -am "chore(sync): changelog and licenses for anytomd-rs $ENGINE"
           git push "https://x-access-token:$TOKEN@github.com/${GITHUB_REPOSITORY}.git" "HEAD:$BRANCH"

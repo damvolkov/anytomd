@@ -1,18 +1,19 @@
 """Session fixtures shared across the suite."""
 
-import base64
+import asyncio
+import contextlib
 import io
 import itertools
-import json
-import os
-import urllib.error
-import urllib.request
+import sys
 import zipfile
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Final
 
 import pytest
+
+from anytomd.backends.registry import BackendRegistry
+from anytomd.config.vision import VisionSettings
+from anytomd.infra.specs import VisionSpec
 
 RESOURCES: Final = Path(__file__).parent / "resources"
 
@@ -21,15 +22,8 @@ CT_NS: Final = "http://schemas.openxmlformats.org/package/2006/content-types"
 DOC_NS: Final = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 REL_OFFICE: Final = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 
-LLM_BASE_URL: Final = os.environ.get(
-    "ANYTOMD_LLM_BASE_URL", "https://token-plan.ap-southeast-1.maas.aliyuncs.com/apps/anthropic/v1"
-)
-LLM_MODEL: Final = os.environ.get("ANYTOMD_LLM_MODEL", "qwen3.8-flash")
-LLM_API_KEY: Final = os.environ.get("ANYTOMD_LLM_API_KEY", os.environ.get("ALIBABA_TOKEN_PLAN_KEY", ""))
-LLM_AVAILABLE: Final = bool(LLM_API_KEY)
 
-
-def docx_with_images(count: int, descr: str = "") -> bytes:
+def docx_with_images(count: int, descr: str = "", image: bytes | None = None) -> bytes:
     """DOCX archive with `count` embedded images awaiting description."""
     drawings = "\n".join(
         f"""<w:p><w:r><w:drawing><wp:inline><wp:docPr descr="{descr}"/>
@@ -75,7 +69,7 @@ def docx_with_images(count: int, descr: str = "") -> bytes:
         archive.writestr("word/document.xml", body)
         archive.writestr("word/media/placeholder.png", b"\x89PNG\r\n\x1a\n" + bytes(60))
         for index in range(count):
-            archive.writestr(f"word/media/image{index + 1}.png", _PNG)
+            archive.writestr(f"word/media/image{index + 1}.png", image or _PNG)
     return buffer.getvalue()
 
 
@@ -108,77 +102,6 @@ def text_pdf(text: str) -> bytes:
     return header + b"".join(objects) + table + trailer
 
 
-def llm_describe(image: bytes, mime_type: str, prompt: str) -> str:
-    """Description from the configured OpenAI-compatible provider (stdlib HTTP only)."""
-    encoded = _base64(image)
-    if "/anthropic" in LLM_BASE_URL:
-        body = {
-            "model": LLM_MODEL,
-            "max_tokens": 128,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "image", "source": {"type": "base64", "media_type": mime_type, "data": encoded}},
-                        {"type": "text", "text": prompt},
-                    ],
-                }
-            ],
-        }
-        request = urllib.request.Request(
-            f"{LLM_BASE_URL}/messages",
-            data=_json_bytes(body),
-            headers={
-                "x-api-key": LLM_API_KEY,
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
-            },
-        )
-        payload = _post(request)
-        text = "".join(block.get("text", "") for block in payload["content"] if block.get("type") == "text")
-    else:
-        body = {
-            "model": LLM_MODEL,
-            "max_tokens": 128,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": prompt},
-                        {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{encoded}"}},
-                    ],
-                }
-            ],
-        }
-        request = urllib.request.Request(
-            f"{LLM_BASE_URL}/chat/completions",
-            data=_json_bytes(body),
-            headers={"Authorization": f"Bearer {LLM_API_KEY}", "content-type": "application/json"},
-        )
-        payload = _post(request)
-        text = payload["choices"][0]["message"]["content"]
-    return str(text).strip()
-
-
-def _base64(data: bytes) -> str:
-    return base64.b64encode(data).decode()
-
-
-def _json_bytes(body: dict) -> bytes:
-    return json.dumps(body).encode()
-
-
-def _post(request: urllib.request.Request) -> dict:
-    try:
-        with urllib.request.urlopen(request, timeout=90) as response:
-            return json.load(response)
-    except urllib.error.HTTPError as error:
-        body = error.read().decode("utf-8", "replace")[:300]
-        error.close()
-        msg = f"provider HTTP {error.code}: {body}"
-        raise RuntimeError(msg) from error
-
-
 @pytest.fixture(scope="session")
 def gallery_docx() -> bytes:
     """DOCX with three describable images."""
@@ -191,12 +114,78 @@ def single_image_docx() -> bytes:
     return docx_with_images(1)
 
 
+class FakeVision:
+    """A vision backend that answers from a script and records every image it was shown."""
+
+    def __init__(self, answer: str = "A red square", error: Exception | None = None, concurrency: int = 4) -> None:
+        self.answer = answer
+        self.error = error
+        self.concurrency = concurrency
+        self.calls: list[tuple[bytes, str]] = []
+        self.live = 0
+        self.peak = 0
+        self.closed: list[str] = []
+        self.rendezvous = 0
+        self.met = asyncio.Event()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        self.closed.append("sync")
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *_):
+        self.closed.append("async")
+
+    def describe(self, image: bytes, mime_type: str) -> str:
+        self.calls.append((image, mime_type))
+        match self.error:
+            case Exception() as error:
+                raise error
+        return self.answer
+
+    async def adescribe(self, image: bytes, mime_type: str) -> str:
+        ### With `rendezvous` set, each call waits (at most 2 s) until that many are in flight: overlap proven, not timed.
+        self.live += 1
+        self.peak = max(self.peak, self.live)
+        _ = self.live >= self.rendezvous and self.met.set()
+        with contextlib.suppress(TimeoutError):
+            await asyncio.wait_for(self.met.wait(), 2)
+        self.live -= 1
+        return self.describe(image, mime_type)
+
+
+@pytest.fixture
+def fake_vision(monkeypatch) -> FakeVision:
+    """The vision fallback wired to a scripted backend, OCR left as installed."""
+    vision = FakeVision()
+    monkeypatch.setattr(BackendRegistry, "describer", lambda self, spec: vision)
+    monkeypatch.setattr(BackendRegistry, "require", lambda self, spec: vision)
+    return vision
+
+
+@pytest.fixture
+def missing_extra(monkeypatch):
+    """Uninstaller: makes a third-party library of an extra unimportable for one test."""
+
+    def _remove(library: str) -> None:
+        monkeypatch.setitem(sys.modules, library, None)
+        _ = [
+            monkeypatch.delitem(sys.modules, module, raising=False)
+            for module in ("anytomd.backends.liteparse", "anytomd.backends.openai", "anytomd.config.vision")
+        ]
+
+    return _remove
+
+
 @pytest.fixture(scope="session")
-def llm():
-    """Configured OpenAI-compatible provider, or skip when no key is present."""
-    if not LLM_AVAILABLE:
-        pytest.skip("no LLM provider key configured")
-    return SimpleNamespace(describe=llm_describe, model=LLM_MODEL, base_url=LLM_BASE_URL)
+def vision_spec() -> VisionSpec:
+    """The real vision model from ANYTOMD_VISION_*, or skip."""
+    spec = VisionSettings().spec()
+    return spec or pytest.skip("no vision model configured (ANYTOMD_VISION_MODEL)")
 
 
 @pytest.fixture(scope="session")

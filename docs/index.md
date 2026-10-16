@@ -1,18 +1,18 @@
 # anytomd
 
 <div class="rx-hero" markdown>
-<p>The Python binding of <a href="https://github.com/developer0hye/anytomd-rs"><strong>anytomd-rs</strong></a> — the pure-Rust engine that turns DOCX, PPTX, XLSX, HTML, CSV, notebooks, images and code into clean Markdown, designed for LLM consumption.</p>
+<p>Any document to clean Markdown, for LLMs. The Python binding of <a href="https://github.com/developer0hye/anytomd-rs"><strong>anytomd-rs</strong></a>, a pure-Rust engine by developer0hye.</p>
 </div>
 
 ```bash
-pip install anytomd        # or: uv add anytomd
+pip install anytomd
 ```
 
 ```python
-from anytomd import convert_file
+import anytomd as ad
 
-result = convert_file("report.docx")
-print(result.markdown)
+document = ad.convert("report.docx")
+print(document.markdown)
 ```
 
 ```markdown
@@ -22,59 +22,35 @@ print(result.markdown)
 
 Revenue grew by **18 percent** and costs fell by *4 percent*.
 
-![Sales chart](chart.png)
-
 | Region | Sales |
 |---|---|
 | EMEA | 1200 |
 ```
 
-<div class="rx-grid" markdown>
-<div markdown>
-### The engine, unchanged
-Every conversion runs inside anytomd-rs itself. The binding adds no parsing logic of its own — output matches the Rust crate and its CLI byte for byte.
-</div>
-<div markdown>
-### No Python dependencies
-One compiled extension module per platform. No runtime packages, no subprocess, no system libraries.
-</div>
-<div markdown>
-### Releases the GIL
-Conversions run with the GIL released: threads convert in parallel, the interpreter stays responsive.
-</div>
-<div markdown>
-### Native asyncio
-`await convert_file_async(...)` runs the conversion off the event loop and describes every image of a document concurrently.
-</div>
-<div markdown>
-### LLM alt text
-Plug any callable — your OpenAI, Anthropic or local model — or the built-in Gemini describers, to replace image placeholders with real descriptions.
-</div>
-<div markdown>
-### Optional OCR, vision and PDF
-`anytomd[full]` adds local OCR, any OpenAI-compatible vision model and a local PDF reader — the base wheel stays dependency-free.
-</div>
-<div markdown>
-### Self-maintaining
-Renovate, deterministic sync and an LLM agent keep the binding aligned with every anytomd-rs release; a human merges.
-</div>
-<div markdown>
-### Typed end to end
-Inline type stubs, `py.typed`, a typed exception tree and typed warnings. Your type checker sees the whole surface.
-</div>
-</div>
+Three verbs, each with its async twin:
 
-## What it converts
+| Sync | Async | Does |
+|---|---|---|
+| `ad.convert(source)` | `await ad.aconvert(source)` | Document → Markdown |
+| `ad.detect(source)` | `await ad.adetect(source)` | Which format is this? |
+| `ad.describe(image)` | `await ad.adescribe(image)` | Image → description, with a vision model |
 
-DOCX, PPTX, XLSX, XLS, HTML, CSV, Jupyter notebooks, JSON, XML, images (PNG, JPEG, GIF, WebP, BMP, TIFF, SVG, HEIC, AVIF), source code and plain text. PDF is refused on purpose: current LLMs read PDF natively — or parse it locally with the optional [`pdf` extra](installation.md#extras-what-each-one-adds). Full matrix → [Formats](guide/formats.md).
+## Extras
 
-## Where to go next
+The base package has no Python dependencies. Extras add a capability, and once installed they work on their own:
 
-- [Installation](installation.md) — wheels, platforms, building from source.
-- [Quickstart](quickstart.md) — the five calls you will actually use.
-- [Reference](reference/conversion.md) — every function, option, class and exception, one by one.
-- [Upstream and versioning](upstream.md) — how this binding tracks anytomd-rs.
-- [Self-maintenance](maintenance.md) — what updates itself, with which tool, and what stays human.
+| Extra | Adds |
+|---|---|
+| `anytomd[pdf]` | PDF conversion |
+| `anytomd[ocr]` | The text inside images |
+| `anytomd[vlm]` | Image descriptions from any OpenAI-compatible vision model, and `describe` |
+| `anytomd[full]` | All of them |
 
-!!! info "Relationship to anytomd-rs"
-    anytomd-rs is written and maintained by [developer0hye](https://github.com/developer0hye). This package is a binding of it for Python; conversion quality, format coverage and performance belong to the upstream project, and so do its [benchmarks](https://github.com/developer0hye/anytomd-rs). Bugs in the Markdown output are upstream issues; bugs in the Python surface belong [here](https://github.com/damvolkov/anytomd/issues).
+```bash
+pip install "anytomd[full]"
+```
+
+Format by format → [Formats](formats.md) · every call → [API](api.md) · what can fail → [Errors](errors.md)
+
+!!! info "anytomd-rs"
+    Conversion quality, format coverage and performance belong to [anytomd-rs](https://github.com/developer0hye/anytomd-rs). Wrong Markdown is an [upstream issue](https://github.com/developer0hye/anytomd-rs/issues); anything about the Python API is [ours](https://github.com/damvolkov/anytomd/issues).

@@ -4,6 +4,40 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-10-16
+
+A new, smaller API. **Breaking**: every name below replaces the old one; there are no aliases. Same engine,
+anytomd-rs 1.3.1.
+
+### Changed
+
+- Three verbs, each with an `a`-prefixed async twin: `convert` / `aconvert` (path or bytes, replacing the four
+  `convert_file*` / `convert_bytes*`), `detect` / `adetect` (replacing `detect_format` + `detect_zip_format`; office
+  types and engine families resolve to the concrete format), `describe` / `adescribe`.
+- PDF is just another format: `convert("report.pdf")` works with `anytomd[pdf]` and raises `MissingExtraError` without
+  it. `PdfConverter` and `PdfDocument` are gone.
+- Images follow one rule when the extras are installed: OCR text first (`[ocr]`); for an image without letters, a
+  description labeled `Image description:` (`[vlm]`); otherwise `""`, or the author's own alt text inside documents.
+- `describe` asks the vision model only (no OCR) and returns what `convert` returns on fallback.
+- Vision is configured with `VisionSpec(model, base_url, api_key, …)` or `ANYTOMD_VISION_*`; any OpenAI-compatible
+  endpoint. The describer classes and user callables are gone, and so are the compiled Gemini describers
+  (Gemini is reachable through its OpenAI-compatible endpoint); the wheel drops reqwest and rustls.
+- `Document` (frozen) replaces `ConversionResult`; `plain_text` is now `text`; `pages` carries the PDF page count.
+  `DocumentWarning` replaces `ConversionWarning`.
+- Options: `images`, `comments`, `max_image_bytes`, `max_zip_bytes` replace `extract_images`, `extract_comments`,
+  `max_total_image_bytes`, `max_uncompressed_zip_bytes`; `ocr` and `vision` are new.
+- Errors: `ConversionError` root with `UnknownFormatError`, `MissingExtraError`, `InputTooLargeError`,
+  `MalformedDocumentError` and `DescriptionError`. ZIP, XML, spreadsheet and UTF-8 failures are
+  `MalformedDocumentError`.
+- `__version__` is the package version, an independent semver; `ENGINE_VERSION` is the anytomd-rs release inside.
+- `anytomd[vlm]` also installs `pydantic-settings`.
+- Package layout follows the library triad: `infra/` (contracts), `backends/` (native, liteparse, openai, registry),
+  `logic/` (api and use cases).
+
+### Added
+
+- Debug logging under the `anytomd` logger: route, OCR result, vision fallback on/off and failures.
+
 ## [1.3.1.post3] - 2026-10-15
 
 Documentation only; same code as 1.3.1.post2.

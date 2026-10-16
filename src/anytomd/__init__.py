@@ -1,69 +1,43 @@
-"""Python binding of anytomd-rs: any document to clean Markdown."""
+"""anytomd: any document to clean Markdown, on the anytomd-rs engine.
 
-from anytomd._native import (
-    AsyncGeminiDescriber,
-    ConversionResult,
-    ConversionWarning,
-    ConvertError,
-    FormatNotSupportedError,
-    GeminiDescriber,
-    ImageDescriptionError,
+Declared `__init__` exception (tax-py-naming): the distribution's public surface is the package itself,
+`import anytomd as ad; ad.convert(...)`, so this module re-exports `logic.api` and the infra contracts. Nothing else.
+"""
+
+from importlib.metadata import version
+
+from anytomd._native import ENGINE_VERSION
+from anytomd.infra.documents import Document
+from anytomd.infra.errors import (
+    ConversionError,
+    DescriptionError,
     InputTooLargeError,
     MalformedDocumentError,
-    SpreadsheetError,
-    UnsupportedFormatError,
-    Utf8Error,
-    XmlError,
-    ZipError,
-    __version__,
-    convert_bytes,
-    convert_bytes_async,
-    convert_file,
-    convert_file_async,
-    detect_format,
-    detect_zip_format,
+    MissingExtraError,
+    UnknownFormatError,
 )
-from anytomd.converters import PdfConverter
-from anytomd.describers import (
-    AsyncImageDescriber,
-    AsyncLiteParseDescriber,
-    AsyncOpenAIDescriber,
-    ImageDescriber,
-    LiteParseDescriber,
-    OpenAIDescriber,
-)
-from anytomd.documents import PdfDocument
-from anytomd.errors import PdfError
+from anytomd.infra.specs import VisionSpec
+from anytomd.infra.warnings import DocumentWarning
+from anytomd.logic.api import aconvert, adescribe, adetect, convert, describe, detect
+
+__version__ = version("anytomd")
 
 __all__ = [
-    "AsyncGeminiDescriber",
-    "AsyncImageDescriber",
-    "AsyncLiteParseDescriber",
-    "AsyncOpenAIDescriber",
-    "ConversionResult",
-    "ConversionWarning",
-    "ConvertError",
-    "FormatNotSupportedError",
-    "GeminiDescriber",
-    "ImageDescriber",
-    "ImageDescriptionError",
+    "ENGINE_VERSION",
+    "ConversionError",
+    "DescriptionError",
+    "Document",
+    "DocumentWarning",
     "InputTooLargeError",
-    "LiteParseDescriber",
     "MalformedDocumentError",
-    "OpenAIDescriber",
-    "PdfConverter",
-    "PdfDocument",
-    "PdfError",
-    "SpreadsheetError",
-    "UnsupportedFormatError",
-    "Utf8Error",
-    "XmlError",
-    "ZipError",
+    "MissingExtraError",
+    "UnknownFormatError",
+    "VisionSpec",
     "__version__",
-    "convert_bytes",
-    "convert_bytes_async",
-    "convert_file",
-    "convert_file_async",
-    "detect_format",
-    "detect_zip_format",
+    "aconvert",
+    "adescribe",
+    "adetect",
+    "convert",
+    "describe",
+    "detect",
 ]
