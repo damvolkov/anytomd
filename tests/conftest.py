@@ -1,6 +1,7 @@
 """Session fixtures shared across the suite."""
 
 import asyncio
+import contextlib
 import io
 import itertools
 import sys
@@ -124,6 +125,8 @@ class FakeVision:
         self.live = 0
         self.peak = 0
         self.closed: list[str] = []
+        self.rendezvous = 0
+        self.met = asyncio.Event()
 
     def __enter__(self):
         return self
@@ -145,9 +148,12 @@ class FakeVision:
         return self.answer
 
     async def adescribe(self, image: bytes, mime_type: str) -> str:
+        ### With `rendezvous` set, each call waits (at most 2 s) until that many are in flight: overlap proven, not timed.
         self.live += 1
         self.peak = max(self.peak, self.live)
-        await asyncio.sleep(0.01)
+        _ = self.live >= self.rendezvous and self.met.set()
+        with contextlib.suppress(TimeoutError):
+            await asyncio.wait_for(self.met.wait(), 2)
         self.live -= 1
         return self.describe(image, mime_type)
 

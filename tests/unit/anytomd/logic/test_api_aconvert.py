@@ -48,9 +48,10 @@ async def test_aconvert_image_without_any_capability(path_of, missing_extra) -> 
 
 
 async def test_aconvert_embedded_images_described_concurrently(gallery_docx, fake_vision) -> None:
+    fake_vision.rendezvous = 3
     document = await ad.aconvert(gallery_docx, format="docx")
     assert document.markdown.count("Image description: A red square") == 3
-    assert fake_vision.peak > 1
+    assert fake_vision.peak == 3
 
 
 async def test_aconvert_concurrency_is_bounded(gallery_docx, fake_vision) -> None:
