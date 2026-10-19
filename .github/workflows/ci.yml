@@ -50,7 +50,7 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6  # v2.9.2
         with:
           lookup-only: ${{ github.event_name == 'pull_request' }}
-      - name: Build + tests (logged for the ai-fix agent)
+      - name: Build + tests (logged for the maintenance agent)
         env:
           PYTHON: ${{ matrix.python }}
         run: |

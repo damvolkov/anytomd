@@ -10,7 +10,7 @@
   "lockFileMaintenance": { "enabled": false },
   "packageRules": [
     {
-      "description": "The engine: react at once, one PR per release, version synced by sync.yml, gaps filled by ai-fix.yml.",
+      "description": "The engine: react at once, one PR per release, changelog and licenses by sync.yml, gaps filled by maintenance.yml.",
       "matchManagers": ["cargo"],
       "matchPackageNames": ["anytomd"],
       "schedule": ["at any time"],
@@ -19,7 +19,7 @@
       "automerge": false
     },
     {
-      "description": "PyO3 and tokio shape the binding itself: separate PRs, ai-fix repairs breakage.",
+      "description": "PyO3 and tokio shape the binding itself: separate PRs, maintenance repairs breakage.",
       "matchManagers": ["cargo"],
       "matchPackageNames": ["pyo3", "tokio"],
       "labels": ["binding-update"],

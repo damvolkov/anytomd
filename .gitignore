@@ -228,7 +228,7 @@ __marimo__/
 # Rust coverage
 coverage.lcov
 
-# qwen-code-cli (ai-fix workflow)
+# qwen-code-cli (maintenance workflow)
 .qwen/
 qwen-artifacts/
 .ai-context/
