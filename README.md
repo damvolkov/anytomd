@@ -28,6 +28,11 @@ ad.detect("export.dat")        # 'xlsx'
 ad.describe("cat.png")         # 'Image description: A tabby cat asleep on a chair.'
 ```
 
+**Text recovery** — one fixed 103-word passage written into every supported format and converted back: the share of
+the passage each format gives whole ([method](https://damvolkov.github.io/anytomd/formats/#text-recovery)).
+
+![Text recovered per format](https://raw.githubusercontent.com/damvolkov/anytomd/main/docs/assets/fidelity-mini.svg)
+
 | | |
 |---|---|
 | [Formats](https://damvolkov.github.io/anytomd/formats/) | What converts, with and without each extra |

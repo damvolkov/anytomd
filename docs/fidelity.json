@@ -1,0 +1,22 @@
+{
+  "Word": 1.0,
+  "PowerPoint": 1.0,
+  "Excel": 1.0,
+  "PDF": 1.0,
+  "HTML": 1.0,
+  "CSV": 1.0,
+  "JSON": 1.0,
+  "XML": 1.0,
+  "Jupyter": 1.0,
+  "Text": 1.0,
+  "Markdown": 1.0,
+  "reStructuredText": 1.0,
+  "Log": 1.0,
+  "YAML": 1.0,
+  "TOML": 1.0,
+  "INI": 1.0,
+  "Code": 1.0,
+  "Image + OCR": 0.8932038834951457,
+  "Image, no OCR": 0.0,
+  "SVG text": 0.0
+}
