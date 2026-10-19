@@ -4,13 +4,19 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-10-19
+
+Same engine (anytomd-rs 1.3.1), same Python API.
+
 ### Changed
 
+- Built against PyO3 0.30: the deprecated `skip_from_py_object` option is gone from the native result classes
+  (it is PyO3's default now). Fixed by the maintenance agent on the first live Renovate run.
 - Workflows named by the house rule (one lowercase word, acronyms uppercase): `ai-fix` is now `maintenance`
   (its commits are tagged `[maintenance]`), `Release` is now `release`.
-- The native bridge builds against PyO3 0.30, which no longer derives `FromPyObject` for `#[pyclass]` types;
-  the redundant `skip_from_py_object` option is gone from `ConversionResult` and `ConversionWarning`.
-  No change to the Python API.
+- `sync` writes the engine line only when the engine version actually changes, into the existing `### Changed`
+  section; a non-engine update (PyO3, tokio) no longer fails the job.
+- Renovate never bumps `requires-python`; the unused, abandoned `pytest-xdist` is dropped from the test tools.
 
 ## [1.4.0] - 2026-10-16
 
