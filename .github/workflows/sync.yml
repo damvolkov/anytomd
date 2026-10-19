@@ -38,15 +38,27 @@ jobs:
           tool: cargo-about
       - name: Record the engine in the changelog, refresh the licenses
         id: align
+        env:
+          BASE: ${{ github.base_ref }}
         run: |
-          ENGINE=$(python3 -c 'import tomllib; print(next(p["version"] for p in tomllib.load(open("Cargo.lock", "rb"))["package"] if p["name"] == "anytomd"))')
-          grep -q "anytomd-rs $ENGINE" CHANGELOG.md || awk -v line="- Engine: anytomd-rs $ENGINE ([release notes](https://github.com/developer0hye/anytomd-rs/releases/tag/v$ENGINE))." '
-            { print }
-            /^## \[Unreleased\]/ && !done { print ""; print "### Changed"; print ""; print line; done = 1 }
-          ' CHANGELOG.md > CHANGELOG.tmp && mv CHANGELOG.tmp CHANGELOG.md
+          engine() { python3 -c 'import sys, tomllib; print(next(p["version"] for p in tomllib.loads(sys.stdin.read())["package"] if p["name"] == "anytomd"))'; }
+          git fetch -q --depth=1 origin "$BASE"
+          ENGINE=$(engine < Cargo.lock)
+          PREVIOUS=$(git show FETCH_HEAD:Cargo.lock | engine)
+          LINE="- Engine: anytomd-rs $ENGINE ([release notes](https://github.com/developer0hye/anytomd-rs/releases/tag/v$ENGINE))."
+          ### Only an engine bump earns a changelog line, and only once.
+          if [ "$ENGINE" != "$PREVIOUS" ] && ! grep -qF -- "- Engine: anytomd-rs $ENGINE " CHANGELOG.md; then
+            awk -v line="$LINE" '
+              /^## \[Unreleased\]/ { inside = 1; print; next }
+              inside && /^### Changed/ { print; getline; print; print line; inside = 0; next }
+              inside && /^## \[/ { print "### Changed"; print ""; print line; print ""; inside = 0 }
+              { print }
+            ' CHANGELOG.md > CHANGELOG.tmp
+            mv CHANGELOG.tmp CHANGELOG.md
+          fi
           cargo about generate about.hbs | tr -d "\r" > THIRD_PARTY_LICENSES.md
           echo "engine=$ENGINE" >> "$GITHUB_OUTPUT"
-          git diff --quiet && echo "changed=false" >> "$GITHUB_OUTPUT" || echo "changed=true" >> "$GITHUB_OUTPUT"
+          if git diff --quiet; then echo "changed=false"; else echo "changed=true"; fi >> "$GITHUB_OUTPUT"
 
       - name: Commit and push
         if: steps.align.outputs.changed == 'true'
