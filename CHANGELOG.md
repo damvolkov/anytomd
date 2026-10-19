@@ -8,6 +8,9 @@ All notable changes to this project are documented in this file.
 
 - Workflows named by the house rule (one lowercase word, acronyms uppercase): `ai-fix` is now `maintenance`
   (its commits are tagged `[maintenance]`), `Release` is now `release`.
+- The native bridge builds against PyO3 0.30, which no longer derives `FromPyObject` for `#[pyclass]` types;
+  the redundant `skip_from_py_object` option is gone from `ConversionResult` and `ConversionWarning`.
+  No change to the Python API.
 
 ## [1.4.0] - 2026-10-16
 

@@ -112,7 +112,7 @@ fn join_reason(error: JoinError) -> PyErr {
 // ##### RESULT #####
 
 /// Outcome of one conversion: Markdown, plain text, title, extracted images and warnings.
-#[pyclass(module = "anytomd._native", frozen, skip_from_py_object)]
+#[pyclass(module = "anytomd._native", frozen)]
 pub struct ConversionResult {
     markdown: Py<PyString>,
     plain_text: Py<PyString>,
@@ -199,7 +199,7 @@ impl ConversionResult {
 }
 
 /// A recoverable problem: `code`, human `message` and optional `location`.
-#[pyclass(module = "anytomd._native", frozen, get_all, skip_from_py_object)]
+#[pyclass(module = "anytomd._native", frozen, get_all)]
 pub struct ConversionWarning {
     /// One of `skipped_element`, `unsupported_feature`, `resource_limit_reached`, `malformed_segment`.
     code: &'static str,
