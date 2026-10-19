@@ -1,4 +1,4 @@
-name: Release
+name: release
 
 on:
   push:
@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   verify:
-    name: tag matches package version
+    name: verify
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -83,7 +83,7 @@ jobs:
           path: dist
 
   publish:
-    name: Publish to PyPI
+    name: publish
     needs: [wheels, sdist]
     runs-on: ubuntu-latest
     environment:

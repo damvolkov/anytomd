@@ -6,8 +6,8 @@ The binding keeps itself aligned with its dependencies. Deterministic bots detec
 flowchart LR
   R[Renovate] -->|PR renovate/*| S[sync.yml: changelog + licenses]
   S -->|push| C[CI: tests · coverage · API diff]
-  C -->|red, or engine API grew| A[ai-fix.yml: Qwen agent]
-  A -->|commit [ai-fix]| C
+  C -->|red, or engine API grew| A[maintenance.yml: Qwen agent]
+  A -->|commit [maintenance]| C
   C -->|green| H[Human review and merge]
   A -->|3 attempts used| N[label needs-human]
   M[health.yml, monthly] --> I[issue deps-health]
@@ -23,13 +23,13 @@ Every file the system may change, who changes it and with which tool. Anything n
 | **Lockfiles** | `Cargo.lock`, `uv.lock` | Renovate, `sync.yml` | cargo, uv | With every pin change |
 | **Changelog: engine line** | `CHANGELOG.md` → `## [Unreleased]` | `sync.yml` | awk | The engine version changes |
 | **Third-party licenses** | `THIRD_PARTY_LICENSES.md` | `sync.yml` | cargo-about | Any Rust dependency changes |
-| **Binding code** | `crates/native/src/lib.rs`, `src/anytomd/` (infra, logic, backends) | `ai-fix.yml` agent | Qwen Code, cargo, maturin | CI red, or engine API grew |
-| **Python surface** | `src/anytomd/logic/api.py`, `src/anytomd/__init__.py`, `src/anytomd/_native.pyi` | `ai-fix.yml` agent | Qwen Code | Something new is exposed |
-| **Tests** | `tests/` | `ai-fix.yml` agent | Qwen Code, pytest | Every change the agent makes |
-| **Docs** | `docs/` (MkDocs), `README.md` | `ai-fix.yml` agent | Qwen Code, mkdocs | Something new is exposed |
-| **Changelog: binding lines** | `CHANGELOG.md` → `## [Unreleased]` | `ai-fix.yml` agent | Qwen Code | Every user-visible change |
+| **Binding code** | `crates/native/src/lib.rs`, `src/anytomd/` (infra, logic, backends) | `maintenance.yml` agent | Qwen Code, cargo, maturin | CI red, or engine API grew |
+| **Python surface** | `src/anytomd/logic/api.py`, `src/anytomd/__init__.py`, `src/anytomd/_native.pyi` | `maintenance.yml` agent | Qwen Code | Something new is exposed |
+| **Tests** | `tests/` | `maintenance.yml` agent | Qwen Code, pytest | Every change the agent makes |
+| **Docs** | `docs/` (MkDocs), `README.md` | `maintenance.yml` agent | Qwen Code, mkdocs | Something new is exposed |
+| **Changelog: binding lines** | `CHANGELOG.md` → `## [Unreleased]` | `maintenance.yml` agent | Qwen Code | Every user-visible change |
 | **Health issue** | GitHub issue labelled `deps-health` | `health.yml` | `tools/health.py`, gh | Monthly |
-| **PR comments and labels** | The Renovate PR | `ai-fix.yml` | gh | After each agent run |
+| **PR comments and labels** | The Renovate PR | `maintenance.yml` | gh | After each agent run |
 
 The agent's limits are enforced by the workflow, not by trust: its commit keeps only `crates/native/src/`, `src/anytomd/`, `tests/`, `docs/`, `CHANGELOG.md` and `README.md`, and the App token cannot write `.github/`.
 
@@ -42,7 +42,7 @@ The agent's limits are enforced by the workflow, not by trust: its commit keeps 
 | `.github/renovate.json` | Deterministic | Opens PRs for new versions: anytomd-rs at once, PyO3 and tokio separately, Python tooling and Actions grouped. Its *Dependency Dashboard* issue also marks packages without a release for a year as abandoned. |
 | `sync.yml` | Deterministic | On `renovate/*`: adds the engine line to the changelog, regenerates `THIRD_PARTY_LICENSES.md`. |
 | `ci.yml` | Deterministic | prek hooks (the same as every local commit: ruff, ty, tach, rustfmt, clippy, licenses freshness, zizmor, gitleaks), tests on Linux/macOS/Windows × Python 3.12/3.14, Rust coverage (≥ 90 % of lines), docs. On `renovate/*` also the **upstream context**: public API diff of the two engine versions (`cargo public-api`) and their release notes. Logs are kept as artifacts for the agent. |
-| `ai-fix.yml` | Agent | After CI on `renovate/*`: **fix** mode when CI is red, **expose** mode when CI is green but the engine's public API gained items. Runs Qwen Code under `QWEN.md`. |
+| `maintenance.yml` | Agent | After CI on `renovate/*`: **fix** mode when CI is red, **expose** mode when CI is green but the engine's public API gained items. Runs Qwen Code under `QWEN.md`. |
 | `health.yml` | Deterministic | First day of each month: checks every direct dependency for an archived repository, a vanished package, a last release older than 18 months, or no push in 12 months. Opens or refreshes one `deps-health` issue; closes it when all is well. |
 | `release.yml` | Deterministic | On a `v*` tag matching the package version: wheels for five platforms, sdist, GitHub build provenance, PyPI via trusted publishing (with PEP 740 attestations). |
 
@@ -50,7 +50,7 @@ The agent's limits are enforced by the workflow, not by trust: its commit keeps 
 
 - The agent never commits. The workflow does, and only files under `crates/native/src/`, `src/anytomd/`, `tests/`, `docs/`, `CHANGELOG.md` and `README.md`; anything else it touched is discarded and listed in the PR comment.
 - The GitHub App has no `workflows` permission: no token in the pipeline can change `.github/`.
-- At most three `[ai-fix]` commits per branch; then the PR gets `needs-human`.
+- At most three `[maintenance]` commits per branch; then the PR gets `needs-human`.
 - **Expose** mode runs once per PR. Runs triggered by a stale head are skipped.
 - `workflow_run` is limited to same-repository `renovate/*` branches, so forks never reach the secrets.
 - Nothing merges itself. Branch protection on `main` requires one human approval.
