@@ -8,6 +8,7 @@ All notable changes to this project are documented in this file.
 
 - Workflows named by the house rule (one lowercase word, acronyms uppercase): `ai-fix` is now `maintenance`
   (its commits are tagged `[maintenance]`), `Release` is now `release`.
+- Renovate never bumps `requires-python`; the unused, abandoned `pytest-xdist` is dropped from the test tools.
 
 ## [1.4.0] - 2026-10-16
 

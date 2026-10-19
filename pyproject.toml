@@ -49,7 +49,6 @@ test = [
     "pytest>=9.1",
     "pytest-asyncio>=1.4",
     "pytest-cov>=7.1",
-    "pytest-xdist[psutil]>=3.8",
     "pytest-randomly>=5.0",
     "pytest-timeout>=2.4",
     "hypothesis>=6.150",
