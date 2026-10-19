@@ -1,4 +1,4 @@
-.PHONY: build build-release test lint format types arch check cargo-fmt clean dist stress samples samples-real integration suite publish docs serve cov licenses health apidiff
+.PHONY: build build-release test lint format types arch check cargo-fmt clean dist stress samples samples-real integration suite publish docs serve cov licenses health apidiff fidelity
 
 build:            ## compile native extension into the venv (debug)
 	uv run maturin develop
@@ -40,6 +40,9 @@ check: lint types arch build test ## full gate
 
 cov:              ## Rust line coverage driven by the Python suite (gate: 90%)
 	tools/coverage.sh 90
+
+fidelity:         ## text recovery by format vs the committed baseline (ARGS=--update rewrites baseline + chart)
+	uv run --no-sync python -m tools.fidelity $(ARGS)
 
 licenses:         ## regenerate THIRD_PARTY_LICENSES.md from the Rust dependency tree
 	cargo about generate about.hbs | tr -d "\r" > THIRD_PARTY_LICENSES.md

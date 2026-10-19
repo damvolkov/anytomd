@@ -165,30 +165,29 @@ def docx_with_images(count: int, descr: str = "") -> bytes:
     return _zip(parts)
 
 
-PPTX = _zip(
-    {
-        "[Content_Types].xml": f"""{XML_DECL}
+PPTX_PARTS: dict[str, bytes | str] = {
+    "[Content_Types].xml": f"""{XML_DECL}
 <Types xmlns="{CT_NS}">
   <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
   <Default Extension="xml" ContentType="application/xml"/>
   <Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/>
   <Override PartName="/ppt/slides/slide1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>
 </Types>""",
-        "_rels/.rels": f"""{XML_DECL}
+    "_rels/.rels": f"""{XML_DECL}
 <Relationships xmlns="{REL_NS}">
   <Relationship Id="rId1" Type="{REL_OFFICE}/officeDocument" Target="ppt/presentation.xml"/>
 </Relationships>""",
-        "ppt/_rels/presentation.xml.rels": f"""{XML_DECL}
+    "ppt/_rels/presentation.xml.rels": f"""{XML_DECL}
 <Relationships xmlns="{REL_NS}">
   <Relationship Id="rId1" Type="{REL_OFFICE}/slide" Target="slides/slide1.xml"/>
 </Relationships>""",
-        "ppt/presentation.xml": f"""{XML_DECL}
+    "ppt/presentation.xml": f"""{XML_DECL}
 <p:presentation xmlns:p="{PPTX_NS}" xmlns:r="{REL_OFFICE}">
   <p:sldIdLst><p:sldId id="256" r:id="rId1"/></p:sldIdLst>
 </p:presentation>""",
-        "ppt/slides/_rels/slide1.xml.rels": f"""{XML_DECL}
+    "ppt/slides/_rels/slide1.xml.rels": f"""{XML_DECL}
 <Relationships xmlns="{REL_NS}"/>""",
-        "ppt/slides/slide1.xml": f"""{XML_DECL}
+    "ppt/slides/slide1.xml": f"""{XML_DECL}
 <p:sld xmlns:p="{PPTX_NS}" xmlns:a="{A_NS}">
   <p:cSld><p:spTree>
     <p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>
@@ -201,32 +200,40 @@ PPTX = _zip(
       </p:txBody>
     </p:sp>
   </p:spTree></p:cSld>
-</p:sld>""",
-    }
-)
+  </p:sld>""",
+}
 
-XLSX = _zip(
-    {
-        "[Content_Types].xml": f"""{XML_DECL}
+PPTX = _zip(PPTX_PARTS)
+
+
+def pptx_with(slide_xml: bytes | str) -> bytes:
+    """PPTX archive whose ppt/slides/slide1.xml is replaced verbatim."""
+    parts = dict(PPTX_PARTS)
+    parts["ppt/slides/slide1.xml"] = slide_xml
+    return _zip(parts)
+
+
+XLSX_PARTS: dict[str, bytes | str] = {
+    "[Content_Types].xml": f"""{XML_DECL}
 <Types xmlns="{CT_NS}">
   <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
   <Default Extension="xml" ContentType="application/xml"/>
   <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
   <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
 </Types>""",
-        "_rels/.rels": f"""{XML_DECL}
+    "_rels/.rels": f"""{XML_DECL}
 <Relationships xmlns="{REL_NS}">
   <Relationship Id="rId1" Type="{REL_OFFICE}/officeDocument" Target="xl/workbook.xml"/>
 </Relationships>""",
-        "xl/_rels/workbook.xml.rels": f"""{XML_DECL}
+    "xl/_rels/workbook.xml.rels": f"""{XML_DECL}
 <Relationships xmlns="{REL_NS}">
   <Relationship Id="rId1" Type="{REL_OFFICE}/worksheet" Target="worksheets/sheet1.xml"/>
 </Relationships>""",
-        "xl/workbook.xml": f"""{XML_DECL}
+    "xl/workbook.xml": f"""{XML_DECL}
 <workbook xmlns="{XLS_NS}" xmlns:r="{REL_OFFICE}">
   <sheets><sheet name="Sales" sheetId="1" r:id="rId1"/></sheets>
 </workbook>""",
-        "xl/worksheets/sheet1.xml": f"""{XML_DECL}
+    "xl/worksheets/sheet1.xml": f"""{XML_DECL}
 <worksheet xmlns="{XLS_NS}">
   <sheetData>
     <row r="1">
@@ -243,8 +250,41 @@ XLSX = _zip(
     </row>
   </sheetData>
 </worksheet>""",
-    }
-)
+}
+
+XLSX = _zip(XLSX_PARTS)
+
+
+def xlsx_with(sheet_xml: bytes | str) -> bytes:
+    """XLSX archive whose xl/worksheets/sheet1.xml is replaced verbatim."""
+    parts = dict(XLSX_PARTS)
+    parts["xl/worksheets/sheet1.xml"] = sheet_xml
+    return _zip(parts)
+
+
+def pdf_with(lines: list[str]) -> bytes:
+    """Single-page PDF, one Helvetica line per entry: the offline text fixture the PDF and OCR paths read."""
+    ### No parentheses in the lines: this minimal writer does not escape PDF string delimiters.
+    content = "\n".join(f"BT /F1 13 Tf 72 {720 - 22 * index} Td ({line}) Tj ET" for index, line in enumerate(lines))
+    stream = content.encode("latin-1")
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
+        b"<< /Length " + str(len(stream)).encode() + b" >>\nstream\n" + stream + b"\nendstream",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    ]
+    body = bytearray(b"%PDF-1.4\n")
+    offsets: list[int] = []
+    for number, payload in enumerate(objects, start=1):
+        offsets.append(len(body))
+        body += f"{number} 0 obj\n".encode() + payload + b"\nendobj\n"
+    xref_at = len(body)
+    body += f"xref\n0 {len(objects) + 1}\n".encode() + b"0000000000 65535 f \n"
+    body += b"".join(f"{offset:010d} 00000 n \n".encode() for offset in offsets)
+    body += f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref_at}\n%%EOF\n".encode()
+    return bytes(body)
+
 
 ALIEN_ZIP = _zip({"readme/manifest.txt": b"not an office document"})
 

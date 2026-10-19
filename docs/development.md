@@ -13,7 +13,7 @@ tests/unit/anytomd/          mirror of src/anytomd/
 tests/stress                 threads, gather, ZIP bomb, hypothesis fuzzing
 tests/integration            real vision model (ANYTOMD_VISION_*)
 tests/resources              fixtures (synthetic + real-world)
-tools/                       fixtures, coverage, API diff and dependency health scripts
+tools/                       fixtures, coverage, text recovery, API diff and dependency health scripts
 ```
 
 ## Setup
@@ -47,6 +47,7 @@ make stress        # concurrency and volume suite
 make integration   # the vision fallback and describe against a real model
 make suite         # everything
 make cov           # Rust line coverage driven by the Python suite (gate: 90 %)
+make fidelity      # text recovery per format; fails on regression vs docs/fidelity.json (ARGS=--update rewrites it)
 make licenses      # regenerate THIRD_PARTY_LICENSES.md (CI fails when stale)
 make docs          # strict documentation build
 make serve         # live documentation on 127.0.0.1:8000

@@ -80,6 +80,25 @@ ad.convert("report.pdf")
 # MissingExtraError: PDF needs the 'pdf' extra: pip install 'anytomd[pdf]'
 ```
 
+## Text recovery
+
+Every supported format is generated from one and the same 103-word passage, then converted back and scored on how
+many of those words come out. It is a comparison between formats, not an absolute benchmark: the passage is fixed and
+committed, so the bars show where each format's text lands relative to the others.
+
+![Text recovered per format](assets/fidelity.svg)
+
+Text and structured formats recover the passage in full. The gap is the OCR row: a rendered image is read back through
+the OCR engine, and some words survive imperfectly. The SVG row is zero — the engine treats an image as pixels and does
+not read vector `<text>`, so nothing comes back until the binding can rasterize it.
+
+The measurement lives in `tools/fidelity.py`; `docs/fidelity.json` is the committed baseline. Re-run and compare with:
+
+```bash
+make fidelity            # re-measure, fail on any regression against the baseline
+make fidelity ARGS=--update   # rewrite the baseline and the chart
+```
+
 ## Not supported
 
 Plain ZIP archives, EPUB, binaries → `UnknownFormatError`.
