@@ -10,6 +10,8 @@
 [developer0hye](https://github.com/developer0hye) that turns DOCX, PPTX, XLSX, HTML, CSV, notebooks, images and code
 into clean Markdown for LLMs. No Python dependencies, GIL released, native asyncio, fully typed.
 
+An **EDamLabs binding**: a Python binding of a third-party engine that keeps its upstream's syntax and follows its releases ([EDamLabs families](https://github.com/edamlabs/esteward#identity)).
+
 📖 **Documentation: <https://edamlabs.github.io/anytomd/>**
 
 ```bash
