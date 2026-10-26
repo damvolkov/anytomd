@@ -4,6 +4,22 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+Same engine, same Python API: the project moves to the EDamLabs organisation.
+
+### Changed
+
+- Home: <https://github.com/edamlabs/anytomd>, documentation <https://edamlabs.github.io/anytomd/>; the old
+  `damvolkov/anytomd` URLs redirect.
+- Documentation built with Zensical in place of MkDocs + Material.
+- Self-maintenance: routine Renovate updates (tooling, actions, lock files, the agent's CLI pin, runtime patches)
+  merge themselves once every required check passes; dependency health moves to esteward, the EDamLabs
+  maintenance engine (daily, PEP 792 status, license changes, OSV advisories, action pins); the repair agent
+  reads the organisation's provider settings (`SM_*`) and its commit gate also checks renamed paths.
+
+### Removed
+
+- `health.yml` and `tools/health.py`, covered by esteward.
+
 ## [1.4.1] - 2026-10-19
 
 Same engine (anytomd-rs 1.3.1), same Python API.

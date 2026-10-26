@@ -1,10 +1,10 @@
 site_name: anytomd
 site_description: Python binding of anytomd-rs — any document to clean Markdown, built for LLMs.
-site_url: https://damvolkov.github.io/anytomd/
-repo_name: damvolkov/anytomd
-repo_url: https://github.com/damvolkov/anytomd
+site_url: https://edamlabs.github.io/anytomd/
+repo_name: edamlabs/anytomd
+repo_url: https://github.com/edamlabs/anytomd
 edit_uri: edit/main/docs/
-copyright: Apache-2.0 · binding &copy; 2026 damvolkov · engine &copy; developer0hye
+copyright: Apache-2.0 · binding &copy; 2026 EDamLabs · engine &copy; developer0hye
 
 theme:
   name: material
@@ -34,7 +34,7 @@ extra:
   generator: false
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/damvolkov/anytomd
+      link: https://github.com/edamlabs/anytomd
     - icon: fontawesome/brands/rust
       link: https://github.com/developer0hye/anytomd-rs
 
@@ -69,4 +69,5 @@ nav:
       - Upstream and versioning: upstream.md
       - Self-maintenance: maintenance.md
       - Development: development.md
+      - Decisions: decisions.md
       - Changelog: changelog.md

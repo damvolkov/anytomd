@@ -54,7 +54,7 @@ Never touch `.github/`, `Cargo.toml`, `Cargo.lock`, `pyproject.toml`, `uv.lock`,
 uv sync && SKIP=licenses,gitleaks uv run prek run --all-files && make test
 ```
 
-passes: every prek hook (ruff, ty, tach, rustfmt, clippy, zizmor, mkdocs strict) and the unit suite.
+passes: every prek hook (ruff, ty, tach, rustfmt, clippy, zizmor, zensical strict) and the unit suite.
 
 ## Final summary format
 

@@ -6,8 +6,9 @@
   ],
   "enabledManagers": [
     "cargo",
-    "pep621",
-    "github-actions"
+    "custom.regex",
+    "github-actions",
+    "pep621"
   ],
   "schedule": [
     "before 6am on monday"
@@ -17,7 +18,11 @@
   "abandonmentThreshold": "1 year",
   "rangeStrategy": "bump",
   "lockFileMaintenance": {
-    "enabled": false
+    "enabled": true,
+    "schedule": [
+      "before 6am on the first day of the month"
+    ],
+    "automerge": true
   },
   "packageRules": [
     {
@@ -59,14 +64,19 @@
       "automerge": false
     },
     {
-      "description": "Python tooling: one weekly PR.",
+      "description": "Python tooling (dependency groups and the build backend): one weekly PR, merges itself on green.",
       "matchManagers": [
         "pep621"
       ],
       "groupName": "python tooling",
       "labels": [
         "tooling"
-      ]
+      ],
+      "matchDepTypes": [
+        "dependency-groups",
+        "build-system.requires"
+      ],
+      "automerge": true
     },
     {
       "description": "Workflow actions stay pinned by digest; one monthly PR.",
@@ -80,7 +90,63 @@
       ],
       "labels": [
         "tooling"
+      ],
+      "automerge": true
+    },
+    {
+      "description": "Runtime deps of a library: widen the range, never raise the floor users resolve against; patches merge themselves.",
+      "matchManagers": [
+        "pep621"
+      ],
+      "matchDepTypes": [
+        "project.dependencies"
+      ],
+      "rangeStrategy": "widen",
+      "labels": [
+        "runtime"
       ]
+    },
+    {
+      "description": "Runtime patch releases merge themselves once every required check passes.",
+      "matchManagers": [
+        "pep621"
+      ],
+      "matchDepTypes": [
+        "project.dependencies"
+      ],
+      "matchUpdateTypes": [
+        "patch"
+      ],
+      "automerge": true
+    },
+    {
+      "description": "The agent's CLI pin: tooling, merges itself once every required check passes.",
+      "matchManagers": [
+        "custom.regex"
+      ],
+      "matchPackageNames": [
+        "@qwen-code/qwen-code"
+      ],
+      "labels": [
+        "tooling"
+      ],
+      "automerge": true
+    }
+  ],
+  "platformAutomerge": true,
+  "automergeType": "pr",
+  "customManagers": [
+    {
+      "description": "The agent's CLI pin, the default of QWEN_CLI_VERSION in the maintenance workflow.",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^\\.github/workflows/maintenance\\.yml$/"
+      ],
+      "matchStrings": [
+        "QWEN_CLI_VERSION \\|\\| '(?<currentValue>\\d+\\.\\d+\\.\\d+)'"
+      ],
+      "depNameTemplate": "@qwen-code/qwen-code",
+      "datasourceTemplate": "npm"
     }
   ]
 }
