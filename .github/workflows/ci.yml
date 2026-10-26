@@ -49,7 +49,7 @@ jobs:
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4  # v10.1.0
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6  # v2.9.2
         with:
-          lookup-only: ${{ github.event_name == 'pull_request' }}
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Build + tests (logged for the maintenance agent)
         env:
           PYTHON: ${{ matrix.python }}
@@ -135,7 +135,7 @@ jobs:
       - name: Strict build (fails on broken links or missing assets)
         run: |
           uv sync --group docs --no-install-project
-          uv run mkdocs build --strict
+          uv run zensical build --strict --clean
       - name: Stage site for Pages
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9  # v5.0.0

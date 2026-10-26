@@ -4,6 +4,29 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+Same engine, same Python API: the project moves to the EDamLabs organisation.
+
+### Changed
+
+- Home: <https://github.com/edamlabs/anytomd>, documentation <https://edamlabs.github.io/anytomd/>; the old
+  `damvolkov/anytomd` URLs redirect.
+- Documentation built with Zensical in place of MkDocs + Material.
+- Self-maintenance: routine Renovate updates (tooling, actions, lock files, the agent's CLI pin, runtime patches)
+  merge themselves once every required check passes; dependency health moves to esteward, the EDamLabs
+  maintenance engine (daily, PEP 792 status, license changes, OSV advisories, action pins); the repair agent
+  reads the organisation's provider settings (`SM_*`) and its commit gate also checks renamed paths.
+
+### Removed
+
+- `health.yml` and `tools/health.py`, covered by esteward.
+
+### Security
+
+- `rustls-webpki` 0.103.16 (RUSTSEC-2026-0382) and `webpki-roots` 1.0.11 (RUSTSEC-2026-0381): distrusted emSign
+  intermediates no longer accepted. `certifi` leaves the lockfile with MkDocs (GHSA-6q48-6c7w-9gw2).
+- Still open: `zip` 8.6.0 (RUSTSEC-2026-0367/0368/0369, fixed in 9.0.0) comes with the engine, which requires
+  `zip ^8.2` (calamine 0.37 already moved to zip ^9); the fix needs an engine release.
+
 ## [1.4.1] - 2026-10-19
 
 Same engine (anytomd-rs 1.3.1), same Python API.

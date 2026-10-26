@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache-2.0"
 license-files = ["LICENSE", "THIRD_PARTY_LICENSES.md"]
-authors = [{ name = "damvolkov", email = "damvolkovv@gmail.com" }]
+authors = [{ name = "EDamLabs" }]
 keywords = ["markdown", "document", "conversion", "docx", "pptx", "xlsx", "html", "llm", "rag", "rust", "anytomd-rs"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
@@ -31,10 +31,10 @@ vlm = ["openai>=3.31", "pydantic-settings>=2.11"]
 full = ["anytomd[ocr,pdf,vlm]"]
 
 [project.urls]
-Homepage = "https://github.com/damvolkov/anytomd"
-Documentation = "https://damvolkov.github.io/anytomd/"
-Source = "https://github.com/damvolkov/anytomd"
-Issues = "https://github.com/damvolkov/anytomd/issues"
+Homepage = "https://github.com/edamlabs/anytomd"
+Documentation = "https://edamlabs.github.io/anytomd/"
+Source = "https://github.com/edamlabs/anytomd"
+Issues = "https://github.com/edamlabs/anytomd/issues"
 Upstream = "https://github.com/developer0hye/anytomd-rs"
 
 [dependency-groups]
@@ -60,7 +60,7 @@ build = [
     "maturin>=1.10",
 ]
 docs = [
-    "mkdocs-material>=9.7",
+    "zensical>=0.0.71,<0.1",
 ]
 dev = [
     { include-group = "lint" },
@@ -73,7 +73,7 @@ dev = [
 [tool.uv]
 required-version = ">=0.12"
 default-groups = ["dev"]
-cache-keys = [{ file = "pyproject.toml" }, { file = "Cargo.toml" }, { file = "Cargo.lock" }]
+cache-keys = [{ file = "pyproject.toml" }, { file = "Cargo.toml" }, { file = "Cargo.lock" }, { file = "crates/**/*.rs" }]
 
 [tool.maturin]
 manifest-path = "crates/native/Cargo.toml"

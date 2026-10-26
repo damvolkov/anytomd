@@ -53,4 +53,4 @@ pip install "anytomd[full]"
 Format by format → [Formats](formats.md) · every call → [API](api.md) · what can fail → [Errors](errors.md)
 
 !!! info "anytomd-rs"
-    Conversion quality, format coverage and performance belong to [anytomd-rs](https://github.com/developer0hye/anytomd-rs). Wrong Markdown is an [upstream issue](https://github.com/developer0hye/anytomd-rs/issues); anything about the Python API is [ours](https://github.com/damvolkov/anytomd/issues).
+    Conversion quality, format coverage and performance belong to [anytomd-rs](https://github.com/developer0hye/anytomd-rs). Wrong Markdown is an [upstream issue](https://github.com/developer0hye/anytomd-rs/issues); anything about the Python API is [ours](https://github.com/edamlabs/anytomd/issues).

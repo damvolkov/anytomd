@@ -13,7 +13,7 @@ tests/unit/anytomd/          mirror of src/anytomd/
 tests/stress                 threads, gather, ZIP bomb, hypothesis fuzzing
 tests/integration            real vision model (ANYTOMD_VISION_*)
 tests/resources              fixtures (synthetic + real-world)
-tools/                       fixtures, coverage, text recovery, API diff and dependency health scripts
+tools/                       fixtures, coverage, text recovery and API diff scripts
 ```
 
 ## Setup
@@ -31,7 +31,7 @@ make build-release # optimized build
 
 | Stage | Python | Rust | Repository |
 |---|---|---|---|
-| pre-commit | `ruff check`, `ruff format`, `ty`, `tach`, `validate-pyproject` | `cargo fmt`, `cargo clippy -D warnings` | whitespace, EOF, line endings, TOML/YAML/JSON, large files, private keys, licenses freshness, `zizmor`, `mkdocs --strict`, `gitleaks` |
+| pre-commit | `ruff check`, `ruff format`, `ty`, `tach`, `validate-pyproject` | `cargo fmt`, `cargo clippy -D warnings` | whitespace, EOF, line endings, TOML/YAML/JSON, large files, private keys, licenses freshness, `zizmor`, `zensical build --strict`, `gitleaks` |
 | pre-push | unit suite + coverage gate | `cargo llvm-cov` ≥ 90 % lines | — |
 
 ```bash

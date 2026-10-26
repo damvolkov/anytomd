@@ -13,7 +13,7 @@ This package compiles it into a Python extension with [PyO3](https://pyo3.rs) an
 | Limits, warnings, strict mode | GIL release, asyncio, cancellation |
 | Performance and [benchmarks](https://github.com/developer0hye/anytomd-rs) | The extras: PDF and OCR (liteparse), vision (OpenAI-compatible) |
 
-Wrong Markdown from a supported format → [anytomd-rs issues](https://github.com/developer0hye/anytomd-rs/issues). Anything else → [ours](https://github.com/damvolkov/anytomd/issues).
+Wrong Markdown from a supported format → [anytomd-rs issues](https://github.com/developer0hye/anytomd-rs/issues). Anything else → [ours](https://github.com/edamlabs/anytomd/issues).
 
 ## Versions
 
@@ -37,4 +37,4 @@ The engine is pinned to an exact release. Every new release is picked up automat
 
 ## Licenses
 
-Apache-2.0, like anytomd-rs. Wheels statically link the engine and its dependencies, under permissive licenses and MPL-2.0. All license texts are in [`THIRD_PARTY_LICENSES.md`](https://github.com/damvolkov/anytomd/blob/main/THIRD_PARTY_LICENSES.md), shipped inside every wheel and regenerated with `make licenses`.
+Apache-2.0, like anytomd-rs. Wheels statically link the engine and its dependencies, under permissive licenses and MPL-2.0. All license texts are in [`THIRD_PARTY_LICENSES.md`](https://github.com/edamlabs/anytomd/blob/main/THIRD_PARTY_LICENSES.md), shipped inside every wheel and regenerated with `make licenses`.
