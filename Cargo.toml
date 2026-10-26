@@ -11,7 +11,7 @@ repository = "https://github.com/edamlabs/anytomd"
 [workspace.dependencies]
 pyo3 = { version = "0.30.1", features = ["extension-module", "abi3-py312", "experimental-async"] }
 anytomd = { version = "=1.3.1", default-features = false, features = ["async"] }
-tokio = { version = "1", features = ["rt-multi-thread", "sync"] }
+tokio = { version = "1.54.1", features = ["rt-multi-thread", "sync"] }
 
 [profile.release]
 lto = "fat"
