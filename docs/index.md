@@ -4,6 +4,8 @@
 <p>Any document to clean Markdown, for LLMs. The Python binding of <a href="https://github.com/developer0hye/anytomd-rs"><strong>anytomd-rs</strong></a>, a pure-Rust engine by developer0hye.</p>
 </div>
 
+An **EDamLabs binding**: a Python binding of a third-party engine that keeps its upstream's syntax and follows its releases ([EDamLabs families](https://github.com/edamlabs/esteward#identity)).
+
 ```bash
 pip install anytomd
 ```

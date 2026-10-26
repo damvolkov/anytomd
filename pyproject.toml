@@ -37,6 +37,11 @@ Source = "https://github.com/edamlabs/anytomd"
 Issues = "https://github.com/edamlabs/anytomd/issues"
 Upstream = "https://github.com/developer0hye/anytomd-rs"
 
+### What this repository is in EDamLabs' taxonomy (https://github.com/edamlabs/esteward#identity).
+[tool.edamlabs]
+kind = "lib"
+family = "binding"
+
 [dependency-groups]
 lint = [
     "ruff>=0.17.2",
