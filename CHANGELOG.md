@@ -20,6 +20,13 @@ Same engine, same Python API: the project moves to the EDamLabs organisation.
 
 - `health.yml` and `tools/health.py`, covered by esteward.
 
+### Security
+
+- `rustls-webpki` 0.103.16 (RUSTSEC-2026-0382) and `webpki-roots` 1.0.11 (RUSTSEC-2026-0381): distrusted emSign
+  intermediates no longer accepted. `certifi` leaves the lockfile with MkDocs (GHSA-6q48-6c7w-9gw2).
+- Still open: `zip` 8.6.0 (RUSTSEC-2026-0367/0368/0369, fixed in 9.0.0) comes with the engine, which requires
+  `zip ^8.2`; reported upstream.
+
 ## [1.4.1] - 2026-10-19
 
 Same engine (anytomd-rs 1.3.1), same Python API.
