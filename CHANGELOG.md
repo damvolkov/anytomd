@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [1.4.2] - 2026-10-26
+
 Same engine, same Python API: the project moves to the EDamLabs organisation.
 
 ### Changed
