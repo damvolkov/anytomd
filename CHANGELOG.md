@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- README: badge layout, description and identity line standardized on the EDamLabs template.
+
 ## [1.4.2] - 2026-10-26
 
 Same engine, same Python API: the project moves to the EDamLabs organisation.
